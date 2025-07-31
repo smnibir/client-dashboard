@@ -13,8 +13,8 @@ if (preg_match('/\\((https?:\\/\\/reports\\.webgrowth\\.io\\/[^\\s]+)\\)/', $con
     <span>Get help with any questions or issues you're experiencing</span>
     
 </div>
-    <div class="flex" style="z-index: 9;">
-        <iframe src="<?php echo esc_url($iframe_url); ?>" class="clickup-iframe" style="height:100vh;width: 100vw;margin-right: -24px;" frameborder="0" rel="preload"></iframe>
+    <div class="flex" style="z-index: 9;gap: 1rem;">
+        <iframe src="<?php echo esc_url($iframe_url); ?>" style="height:1140px;width: 100vw;border-radius: 1rem;" frameborder="0" rel="preload"></iframe>
         <div>
             <div class="support-container">
               <div class="response-times">

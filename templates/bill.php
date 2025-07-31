@@ -362,7 +362,7 @@ $plan_duration = $billing_interval;
     background: transparent;
     color: #999;
     padding: 8px 16px;
-    border: 1px solid #2e2e2e;
+    border: 1px solid #1f1f1f;
     border-radius: 10px;
     cursor: pointer;
     display: inline-flex;
@@ -375,6 +375,16 @@ $plan_duration = $billing_interval;
     color: #44da67;
     border-color: #44da67;
     background: #292929;
+}
+/*light*/
+.light-theme .btn-secondary:hover {
+    color: #44da67;
+    border-color: #e5e5e5;
+    background: #F1F1F1;
+}
+.light-theme .btn-secondary {
+    color: #000;
+    border: 1px solid #e5e5e5;
 }
 
 .section-title {
@@ -760,7 +770,8 @@ $plan_duration = $billing_interval;
 <script>
 jQuery(document).ready(function($) {
     // Update Payment Card
-    $('#update-payment-card').on('click', function() {
+    $('#update-payment-card').on('click', function(e) {
+        e.preventDefault();
         $('#payment-method-modal').fadeIn();
         
         // Load WooCommerce payment methods form
@@ -773,26 +784,40 @@ jQuery(document).ready(function($) {
             },
             success: function(response) {
                 $('#payment-method-form').html(response);
+            },
+            error: function() {
+                $('#payment-method-form').html('<p>Error loading payment form. Please try again.</p>');
             }
         });
     });
     
     // Close modal
-    $('.modal-close').on('click', function() {
+    $('.modal-close').on('click', function(e) {
+        e.preventDefault();
         $('#payment-method-modal').fadeOut();
     });
 
-    $('.modal').on('click', function(e) {
+    // Close modal when clicking outside
+    $('#payment-method-modal').on('click', function(e) {
         if ($(e.target).hasClass('modal')) {
             $('#payment-method-modal').fadeOut();
         }
     });
     
+    // Prevent modal close on content click
+    $('.modal-content').on('click', function(e) {
+        e.stopPropagation();
+    });
+    
     // Early renewal
-    $('.btn-renew-now').on('click', function() {
+    $('.btn-renew-now').on('click', function(e) {
+        e.preventDefault();
         var subscriptionId = $(this).data('subscription-id');
+        var $button = $(this);
         
         if (confirm('Process early renewal for this subscription?')) {
+            $button.prop('disabled', true).text('Processing...');
+            
             $.ajax({
                 url: <?php echo wp_json_encode(admin_url('admin-ajax.php')); ?>,
                 type: 'POST',
@@ -807,20 +832,27 @@ jQuery(document).ready(function($) {
                         location.reload();
                     } else {
                         alert('Error processing renewal: ' + response.data);
+                        $button.prop('disabled', false).text('Pay Now');
                     }
+                },
+                error: function() {
+                    alert('Error processing renewal. Please try again.');
+                    $button.prop('disabled', false).text('Pay Now');
                 }
             });
         }
     });
     
     // Download invoice
-    $('.btn-download-invoice').on('click', function() {
+    $('.btn-download-invoice').on('click', function(e) {
+        e.preventDefault();
         var orderId = $(this).data('order-id');
         window.location.href = <?php echo wp_json_encode(admin_url('admin-ajax.php')); ?> + '?action=download_invoice&order_id=' + orderId + '&nonce=<?php echo esc_js(wp_create_nonce('download_invoice_nonce')); ?>';
     });
     
     // Export all invoices
-    $('#export-all-invoices').on('click', function() {
+    $('#export-all-invoices').on('click', function(e) {
+        e.preventDefault();
         window.location.href = <?php echo wp_json_encode(admin_url('admin-ajax.php')); ?> + '?action=export_all_invoices&nonce=<?php echo esc_js(wp_create_nonce('export_invoices_nonce')); ?>';
     });
 });

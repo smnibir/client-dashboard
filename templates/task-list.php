@@ -67,10 +67,10 @@ $upcoming = count($upcoming_tasks);
             </div>
 
     <div class="task-list-summary">
-        <div class="task-summary-item common-padding sec-common-bg sec-common-radius flex"   data-aos="fade-right" data-aos-delay="100" data-aos-duration="500"> <span class="badge" style="color: #fff;"><?= $total_tasks ?></span>Total Tasks</div>
-        <div class="task-summary-item common-padding sec-common-bg sec-common-radius flex"  data-aos="fade-right" data-aos-delay="200" data-aos-duration="600"> <span class="badge badge-completed"><?= $completed ?></span>Completed</div>
-        <div class="task-summary-item common-padding sec-common-bg sec-common-radius flex"  data-aos="fade-right" data-aos-delay="300" data-aos-duration="700"> <span class="badge badge-in-progress"><?= $in_progress ?></span> In Progress</div>
-        <div class="task-summary-item common-padding sec-common-bg sec-common-radius flex"  data-aos="fade-right" data-aos-delay="400" data-aos-duration="800"> <span class="badge badge-upcoming"><?= $upcoming ?></span>Upcoming</div>
+        <div class="task-summary-item common-padding sec-common-bg sec-common-radius common-border flex common-color"   data-aos="fade-right" data-aos-delay="100" data-aos-duration="500"> <span class="badge common-color"><?= $total_tasks ?></span>Total Tasks</div>
+        <div class="task-summary-item common-padding sec-common-bg sec-common-radius common-border flex"  data-aos="fade-right" data-aos-delay="200" data-aos-duration="600"> <span class="badge badge-completed"><?= $completed ?></span>Completed</div>
+        <div class="task-summary-item common-padding sec-common-bg sec-common-radius common-border flex"  data-aos="fade-right" data-aos-delay="300" data-aos-duration="700"> <span class="badge badge-in-progress"><?= $in_progress ?></span> In Progress</div>
+        <div class="task-summary-item common-padding sec-common-bg sec-common-radius common-border flex"  data-aos="fade-right" data-aos-delay="400" data-aos-duration="800"> <span class="badge badge-upcoming"><?= $upcoming ?></span>Upcoming</div>
     </div>
 
     <div class="task-list-tabs tab-bg">
@@ -195,7 +195,7 @@ foreach ($task['custom_fields'] as $field) {
 }
     ob_start();
     ?>
-    <div class="task-list-card <?= $total_tasks > 20 && $index >= 20 ? 'task-list-hidden' : '' ?>" data-task-status="<?= esc_attr($status) ?> "   data-aos="fade-right" data-aos-delay="200" data-aos-duration="500">
+    <div class="common-border task-list-card <?= $total_tasks > 20 && $index >= 20 ? 'task-list-hidden' : '' ?>" data-task-status="<?= esc_attr($status) ?> "   data-aos="fade-right" data-aos-delay="200" data-aos-duration="500">
         <div class="task-list-content">
             <div class="flex" style="align-items: center;margin-bottom:.5rem;">            <?= $status_icon ?>
             <h3 class="task-title" style="margin-bottom: 0px;font-size: 1.4rem;"><?= esc_html($task['name']) ?></h3></div>
@@ -307,10 +307,8 @@ foreach ($task['custom_fields'] as $field) {
 }
 
 .task-list-card {
-    background-color: #1a1a1a;
     padding: 15px;
     border-radius: 5px;
-    border: 1px solid #2e2e2e;
     margin-bottom: 15px;
     display: grid;
     align-items: start;
@@ -349,6 +347,17 @@ p.task-description {
     display: flex;
     align-items: center;
     gap: 4px;
+}
+/*light*/
+.light-theme .task-assignee, .light-theme .task-date{
+    color: #737373;
+}
+.light-theme .task-list-tabs {
+    border: 4px solid #f1f1f1;
+}
+.light-theme .task-list-tab-button.active{
+    background: #fff;
+    color: #000;
 }
 
 

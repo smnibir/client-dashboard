@@ -1,7 +1,7 @@
 <?php
 /**
  * AJAX Handlers for Billing & Payment functionality
- * Add this to your plugin's includes folder as billing-ajax-handlers.php
+ * Properly integrated with WooCommerce Stripe Gateway
  */
 
 // Get payment methods form
@@ -19,6 +19,11 @@ function handle_get_payment_methods_form() {
     
     // Get saved payment methods
     $saved_methods = wc_get_customer_saved_methods_list(get_current_user_id());
+    $card_count = !empty($saved_methods['card']) ? count($saved_methods['card']) : 0;
+    
+    // Get Stripe settings
+    $stripe_settings = get_option('woocommerce_stripe_settings');
+    $publishable_key = isset($stripe_settings['publishable_key']) ? $stripe_settings['publishable_key'] : '';
     
     ob_start();
     ?>
@@ -30,7 +35,7 @@ function handle_get_payment_methods_form() {
                     $card = $method['method'];
                     $is_default = $card->get_id() === get_user_meta(get_current_user_id(), 'wc_default_payment_method', true);
                 ?>
-                    <div class="saved-card-item">
+                    <div class="saved-card-item" data-card-count="<?php echo esc_attr($card_count); ?>">
                         <div class="card-details">
                             <span class="card-brand"><?php echo esc_html($card->get_brand()); ?></span>
                             <span class="card-number">**** <?php echo esc_html($card->get_last4()); ?></span>
@@ -42,7 +47,11 @@ function handle_get_payment_methods_form() {
                             <?php else: ?>
                                 <button class="set-default-card" data-token-id="<?php echo esc_attr($card->get_id()); ?>">Set as Default</button>
                             <?php endif; ?>
-                            <button class="delete-card" data-token-id="<?php echo esc_attr($card->get_id()); ?>">Delete</button>
+                            <?php if ($card_count > 1): ?>
+                                <button class="delete-card" data-token-id="<?php echo esc_attr($card->get_id()); ?>">Delete</button>
+                            <?php else: ?>
+                                <span class="min-card-notice" title="At least one card must be kept on file">Protected</span>
+                            <?php endif; ?>
                         </div>
                     </div>
                 <?php endforeach; ?>
@@ -66,14 +75,17 @@ function handle_get_payment_methods_form() {
                 </label>
             </div>
             
-            <button type="submit" class="btn-primary">Add Card</button>
+            <input type="hidden" name="stripe_source" id="stripe-source" value="">
+            <input type="hidden" name="payment_method_nonce" value="<?php echo wp_create_nonce('add_payment_method'); ?>">
+            
+            <button type="submit" class="btn-primary" id="submit-payment-method">Add Card</button>
         </form>
     </div>
     
     <script>
-    // Initialize Stripe if available
-    if (typeof Stripe !== 'undefined') {
-        var stripe = Stripe('<?php echo get_option('woocommerce_stripe_settings')['publishable_key'] ?? ''; ?>');
+    // Initialize Stripe
+    if (typeof Stripe !== 'undefined' && '<?php echo esc_js($publishable_key); ?>') {
+        var stripe = Stripe('<?php echo esc_js($publishable_key); ?>');
         var elements = stripe.elements();
         var cardElement = elements.create('card', {
             style: {
@@ -94,75 +106,135 @@ function handle_get_payment_methods_form() {
         });
         cardElement.mount('#card-element');
         
+        // Handle real-time validation errors from the card Element
+        cardElement.addEventListener('change', function(event) {
+            var displayError = document.getElementById('card-errors');
+            if (event.error) {
+                displayError.textContent = event.error.message;
+            } else {
+                displayError.textContent = '';
+            }
+        });
+        
         // Handle form submission
-        $('#add-payment-method-form').on('submit', function(e) {
-            e.preventDefault();
+        var form = document.getElementById('add-payment-method-form');
+        var submitButton = document.getElementById('submit-payment-method');
+        
+        form.addEventListener('submit', function(event) {
+            event.preventDefault();
             
-            stripe.createToken(cardElement).then(function(result) {
+            // Disable submit button
+            submitButton.disabled = true;
+            submitButton.textContent = 'Processing...';
+            
+            stripe.createPaymentMethod({
+                type: 'card',
+                card: cardElement,
+            }).then(function(result) {
                 if (result.error) {
-                    $('#card-errors').text(result.error.message);
+                    // Show error to customer
+                    var errorElement = document.getElementById('card-errors');
+                    errorElement.textContent = result.error.message;
+                    
+                    // Re-enable submit button
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'Add Card';
                 } else {
-                    // Send token to server
-                    $.ajax({
-                        url: '<?php echo admin_url('admin-ajax.php'); ?>',
-                        type: 'POST',
-                        data: {
-                            action: 'add_payment_method',
-                            token: result.token.id,
-                            nonce: '<?php echo wp_create_nonce('add_payment_method_nonce'); ?>'
-                        },
-                        success: function(response) {
-                            if (response.success) {
-                                alert('Card added successfully!');
-                                $('#payment-method-modal').fadeOut();
-                                location.reload();
-                            } else {
-                                alert('Error: ' + response.data);
-                            }
-                        }
-                    });
+                    // Send payment method to server
+                    stripePaymentMethodHandler(result.paymentMethod);
                 }
             });
         });
+        
+        function stripePaymentMethodHandler(paymentMethod) {
+            // Insert the payment method ID into the form
+            var hiddenInput = document.getElementById('stripe-source');
+            hiddenInput.value = paymentMethod.id;
+            
+            // Submit via AJAX
+            var formData = new FormData(form);
+            formData.append('action', 'add_stripe_payment_method');
+            formData.append('payment_method_id', paymentMethod.id);
+            
+            fetch('<?php echo admin_url('admin-ajax.php'); ?>', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Success - close modal and refresh
+                    alert('Card added successfully!');
+                    document.getElementById('payment-method-modal').style.display = 'none';
+                    location.reload();
+                } else {
+                    // Show error
+                    document.getElementById('card-errors').textContent = data.data || 'An error occurred. Please try again.';
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'Add Card';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('card-errors').textContent = 'An error occurred. Please try again.';
+                submitButton.disabled = false;
+                submitButton.textContent = 'Add Card';
+            });
+        }
+    } else {
+        document.getElementById('card-errors').textContent = 'Stripe is not properly configured. Please contact support.';
     }
     
     // Set default card
-    $('.set-default-card').on('click', function() {
-        var tokenId = $(this).data('token-id');
-        $.ajax({
-            url: '<?php echo admin_url('admin-ajax.php'); ?>',
-            type: 'POST',
-            data: {
-                action: 'set_default_payment_method',
-                token_id: tokenId,
-                nonce: '<?php echo wp_create_nonce('set_default_payment_nonce'); ?>'
-            },
-            success: function(response) {
-                if (response.success) {
+    document.querySelectorAll('.set-default-card').forEach(function(button) {
+        button.addEventListener('click', function() {
+            var tokenId = this.dataset.tokenId;
+            
+            fetch('<?php echo admin_url('admin-ajax.php'); ?>', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'action=set_default_payment_method&token_id=' + tokenId + '&nonce=<?php echo wp_create_nonce('set_default_payment_nonce'); ?>'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
                     location.reload();
                 }
-            }
+            });
         });
     });
     
-    // Delete card
-    $('.delete-card').on('click', function() {
-        if (!confirm('Are you sure you want to delete this card?')) return;
-        
-        var tokenId = $(this).data('token-id');
-        $.ajax({
-            url: '<?php echo admin_url('admin-ajax.php'); ?>',
-            type: 'POST',
-            data: {
-                action: 'delete_payment_method',
-                token_id: tokenId,
-                nonce: '<?php echo wp_create_nonce('delete_payment_nonce'); ?>'
-            },
-            success: function(response) {
-                if (response.success) {
-                    location.reload();
-                }
+    // Delete card with minimum card check
+    document.querySelectorAll('.delete-card').forEach(function(button) {
+        button.addEventListener('click', function() {
+            var cardCount = parseInt(this.closest('.saved-card-item').dataset.cardCount);
+            
+            if (cardCount <= 1) {
+                alert('You must keep at least one payment method on file.');
+                return;
             }
+            
+            if (!confirm('Are you sure you want to delete this card?')) return;
+            
+            var tokenId = this.dataset.tokenId;
+            
+            fetch('<?php echo admin_url('admin-ajax.php'); ?>', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'action=delete_payment_method&token_id=' + tokenId + '&nonce=<?php echo wp_create_nonce('delete_payment_nonce'); ?>'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert(data.data || 'Error deleting card.');
+                }
+            });
         });
     });
     </script>
@@ -208,6 +280,13 @@ function handle_get_payment_methods_form() {
         font-weight: 600;
     }
     
+    .min-card-notice {
+        color: #666;
+        font-size: 0.75rem;
+        font-style: italic;
+        padding: 4px 12px;
+    }
+    
     .set-default-card,
     .delete-card {
         background: transparent;
@@ -229,6 +308,11 @@ function handle_get_payment_methods_form() {
         color: #ef4444;
     }
     
+    .delete-card:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    
     #card-element {
         background: #2e2e2e;
         padding: 1rem;
@@ -239,6 +323,7 @@ function handle_get_payment_methods_form() {
     #card-errors {
         color: #ef4444;
         margin-top: 0.5rem;
+        font-size: 0.875rem;
     }
     
     .form-group {
@@ -250,35 +335,104 @@ function handle_get_payment_methods_form() {
         margin-bottom: 0.5rem;
         color: #999;
     }
+    
+    .btn-primary:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
     </style>
     <?php
     echo ob_get_clean();
     wp_die();
 }
 
-// Add payment method
-add_action('wp_ajax_add_payment_method', 'handle_add_payment_method');
-function handle_add_payment_method() {
-    if (!wp_verify_nonce($_POST['nonce'], 'add_payment_method_nonce')) {
+// Add Stripe payment method
+add_action('wp_ajax_add_stripe_payment_method', 'handle_add_stripe_payment_method');
+function handle_add_stripe_payment_method() {
+    // Verify nonce
+    if (!wp_verify_nonce($_POST['payment_method_nonce'], 'add_payment_method')) {
         wp_send_json_error('Security check failed');
     }
     
-    $token = sanitize_text_field($_POST['token']);
+    // Check if user is logged in
+    if (!is_user_logged_in()) {
+        wp_send_json_error('Please log in to add payment methods');
+    }
+    
+    $payment_method_id = sanitize_text_field($_POST['payment_method_id']);
     $user_id = get_current_user_id();
     
-    // This would integrate with your payment gateway
-    // For Stripe example:
-    if (class_exists('WC_Gateway_Stripe')) {
-        $stripe = new WC_Gateway_Stripe();
-        $result = $stripe->add_payment_method($token);
+    // Check if WooCommerce Stripe Gateway is active
+    if (!class_exists('WC_Gateway_Stripe')) {
+        wp_send_json_error('Stripe gateway is not available');
+    }
+    
+    try {
+        // Get the Stripe gateway instance
+        $stripe_gateway = WC()->payment_gateways->payment_gateways()['stripe'];
         
-        if ($result) {
-            wp_send_json_success('Payment method added successfully');
-        } else {
-            wp_send_json_error('Failed to add payment method');
+        if (!$stripe_gateway) {
+            wp_send_json_error('Stripe gateway not found');
         }
-    } else {
-        wp_send_json_error('Payment gateway not available');
+        
+        // Get Stripe customer ID for the user
+        $stripe_customer_id = get_user_meta($user_id, '_stripe_customer_id', true);
+        
+        if (!$stripe_customer_id) {
+            // Create a new Stripe customer
+            $customer_data = array(
+                'email' => wp_get_current_user()->user_email,
+                'description' => 'Customer for user #' . $user_id,
+            );
+            
+            $response = WC_Stripe_API::request($customer_data, 'customers');
+            
+            if (is_wp_error($response)) {
+                wp_send_json_error($response->get_error_message());
+            }
+            
+            $stripe_customer_id = $response->id;
+            update_user_meta($user_id, '_stripe_customer_id', $stripe_customer_id);
+        }
+        
+        // Attach payment method to customer
+        $attach_response = WC_Stripe_API::request(
+            array('customer' => $stripe_customer_id),
+            'payment_methods/' . $payment_method_id . '/attach'
+        );
+        
+        if (is_wp_error($attach_response)) {
+            wp_send_json_error($attach_response->get_error_message());
+        }
+        
+        // Save the payment method as a token in WooCommerce
+        $token = new WC_Payment_Token_CC();
+        $token->set_token($payment_method_id);
+        $token->set_gateway_id('stripe');
+        $token->set_user_id($user_id);
+        
+        // Set card details from the payment method
+        if (isset($attach_response->card)) {
+            $token->set_card_type(strtolower($attach_response->card->brand));
+            $token->set_last4($attach_response->card->last4);
+            $token->set_expiry_month($attach_response->card->exp_month);
+            $token->set_expiry_year($attach_response->card->exp_year);
+        }
+        
+        // Save the token
+        $token->save();
+        
+        // If this is the first card, make it default
+        $saved_methods = wc_get_customer_saved_methods_list($user_id);
+        if (empty($saved_methods) || count($saved_methods['card']) === 1) {
+            $token->set_default(true);
+            $token->save();
+        }
+        
+        wp_send_json_success('Payment method added successfully');
+        
+    } catch (Exception $e) {
+        wp_send_json_error($e->getMessage());
     }
 }
 
@@ -289,24 +443,48 @@ function handle_set_default_payment_method() {
         wp_send_json_error('Security check failed');
     }
     
-    $token_id = sanitize_text_field($_POST['token_id']);
-    $user_id = get_current_user_id();
+    $token_id = intval($_POST['token_id']);
+    $token = WC_Payment_Tokens::get($token_id);
     
-    update_user_meta($user_id, 'wc_default_payment_method', $token_id);
-    wp_send_json_success();
+    if ($token && $token->get_user_id() === get_current_user_id()) {
+        WC_Payment_Tokens::set_users_default($token->get_user_id(), $token_id);
+        wp_send_json_success();
+    } else {
+        wp_send_json_error('Invalid token');
+    }
 }
 
-// Delete payment method
+// Delete payment method with minimum card check
 add_action('wp_ajax_delete_payment_method', 'handle_delete_payment_method');
 function handle_delete_payment_method() {
     if (!wp_verify_nonce($_POST['nonce'], 'delete_payment_nonce')) {
         wp_send_json_error('Security check failed');
     }
     
-    $token_id = sanitize_text_field($_POST['token_id']);
+    $token_id = intval($_POST['token_id']);
+    $user_id = get_current_user_id();
+    
+    // Check if user has more than one payment method
+    $saved_methods = wc_get_customer_saved_methods_list($user_id);
+    $card_count = !empty($saved_methods['card']) ? count($saved_methods['card']) : 0;
+    
+    if ($card_count <= 1) {
+        wp_send_json_error('You must keep at least one payment method on file.');
+    }
+    
     $token = WC_Payment_Tokens::get($token_id);
     
-    if ($token && $token->get_user_id() === get_current_user_id()) {
+    if ($token && $token->get_user_id() === $user_id) {
+        // If deleting the default card, set another as default
+        if ($token->is_default()) {
+            foreach ($saved_methods['card'] as $method) {
+                if ($method['method']->get_id() != $token_id) {
+                    WC_Payment_Tokens::set_users_default($user_id, $method['method']->get_id());
+                    break;
+                }
+            }
+        }
+        
         $token->delete();
         wp_send_json_success();
     } else {
@@ -351,144 +529,27 @@ function handle_process_early_renewal() {
     }
 }
 
-// Download invoice
-add_action('wp_ajax_download_invoice', 'handle_download_invoice');
-add_action('wp_ajax_nopriv_download_invoice', 'handle_download_invoice');
-function handle_download_invoice() {
-    if (!wp_verify_nonce($_GET['nonce'], 'download_invoice_nonce')) {
-        wp_die('Security check failed');
-    }
-    
-    $order_id = intval($_GET['order_id']);
-    $order = wc_get_order($order_id);
-    
-    if (!$order || $order->get_user_id() !== get_current_user_id()) {
-        wp_die('Invalid order');
-    }
-    
-    // Check if PDF Invoice plugin is active
-    if (class_exists('WPO_WCPDF')) {
-        // Use PDF Invoice plugin to generate and download
-        $pdf = WPO_WCPDF()->documents->get_document('invoice', $order);
-        if ($pdf) {
-            $pdf->output_pdf('download');
-        }
-    } else {
-        // Fallback to basic HTML invoice
-        header('Content-Type: text/html; charset=utf-8');
-        header('Content-Disposition: attachment; filename="invoice-' . $order_id . '.html"');
-        
-        echo generate_basic_invoice_html($order);
-    }
-    
-    exit;
-}
-
-// Export all invoices
-add_action('wp_ajax_export_all_invoices', 'handle_export_all_invoices');
-function handle_export_all_invoices() {
-    if (!wp_verify_nonce($_GET['nonce'], 'export_invoices_nonce')) {
-        wp_die('Security check failed');
-    }
-    
-    $user_id = get_current_user_id();
-    $orders = wc_get_orders([
-        'customer' => $user_id,
-        'limit' => -1,
-        'return' => 'objects',
-    ]);
-    
-    // Create CSV
-    header('Content-Type: text/csv; charset=utf-8');
-    header('Content-Disposition: attachment; filename="invoices-export-' . date('Y-m-d') . '.csv"');
-    
-    $output = fopen('php://output', 'w');
-    
-    // Headers
-    fputcsv($output, ['Invoice Number', 'Date', 'Status', 'Total', 'Payment Method', 'Items']);
-    
-    // Data
-    foreach ($orders as $order) {
-        $items = [];
-        foreach ($order->get_items() as $item) {
-            $items[] = $item->get_name() . ' x' . $item->get_quantity();
+// Helper function to check if Stripe API class exists
+if (!function_exists('wc_stripe_api_loaded')) {
+    function wc_stripe_api_loaded() {
+        if (class_exists('WC_Stripe_API')) {
+            return true;
         }
         
-        fputcsv($output, [
-            'INV-' . $order->get_order_number(),
-            $order->get_date_created()->date('Y-m-d'),
-            wc_get_order_status_name($order->get_status()),
-            $order->get_total(),
-            $order->get_payment_method_title(),
-            implode(', ', $items)
-        ]);
+        // Try to load the Stripe API class
+        $stripe_path = WP_PLUGIN_DIR . '/woocommerce-gateway-stripe/includes/class-wc-stripe-api.php';
+        if (file_exists($stripe_path)) {
+            require_once $stripe_path;
+            return true;
+        }
+        
+        return false;
     }
-    
-    fclose($output);
-    exit;
 }
 
-// Helper function to generate basic invoice HTML
-function generate_basic_invoice_html($order) {
-    ob_start();
-    ?>
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="utf-8">
-        <title>Invoice #<?php echo $order->get_order_number(); ?></title>
-        <style>
-            body { font-family: Arial, sans-serif; }
-            .invoice-header { margin-bottom: 30px; }
-            .invoice-details { margin-bottom: 30px; }
-            table { width: 100%; border-collapse: collapse; }
-            th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
-            .total { font-weight: bold; font-size: 1.2em; }
-        </style>
-    </head>
-    <body>
-        <div class="invoice-header">
-            <h1>Invoice #<?php echo $order->get_order_number(); ?></h1>
-            <p>Date: <?php echo $order->get_date_created()->date('F j, Y'); ?></p>
-        </div>
-        
-        <div class="invoice-details">
-            <h3>Bill To:</h3>
-            <p>
-                <?php echo $order->get_billing_first_name() . ' ' . $order->get_billing_last_name(); ?><br>
-                <?php echo $order->get_billing_email(); ?><br>
-                <?php echo $order->get_billing_phone(); ?>
-            </p>
-        </div>
-        
-        <table>
-            <thead>
-                <tr>
-                    <th>Item</th>
-                    <th>Quantity</th>
-                    <th>Price</th>
-                    <th>Total</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($order->get_items() as $item): ?>
-                <tr>
-                    <td><?php echo $item->get_name(); ?></td>
-                    <td><?php echo $item->get_quantity(); ?></td>
-                    <td><?php echo wc_price($item->get_subtotal() / $item->get_quantity()); ?></td>
-                    <td><?php echo wc_price($item->get_total()); ?></td>
-                </tr>
-                <?php endforeach; ?>
-            </tbody>
-            <tfoot>
-                <tr class="total">
-                    <td colspan="3">Total</td>
-                    <td><?php echo wc_price($order->get_total()); ?></td>
-                </tr>
-            </tfoot>
-        </table>
-    </body>
-    </html>
-    <?php
-    return ob_get_clean();
-}
+// Make sure Stripe API is loaded when needed
+add_action('init', function() {
+    if (is_admin() && defined('DOING_AJAX') && DOING_AJAX) {
+        wc_stripe_api_loaded();
+    }
+});

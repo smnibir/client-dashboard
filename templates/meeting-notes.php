@@ -90,7 +90,7 @@ function format_meeting_date($date_string) {
 .search-container {
 display: flex;
 align-items: center;
-padding-left: 10px;
+padding: 5px 10px 5px 5px;
 
 }
 .search-icon{
@@ -98,8 +98,7 @@ padding-left: 10px;
     height: 25;
     color: #999;
 }
-.search-icon svg{
-    
+.search-icon svg
     color: #999;
 }
 #global-search {
@@ -111,11 +110,14 @@ color: #fff;
     background: transparent;
 }
 input#global-search{
-    border: 0px;
+    border: none;
     width: 350px;
+    background: #161616;
+    border-radius: 1rem;
 }
 .search-container:focus-within {
   border: 2px solid #44da67;
+  padding: 5px 10px;
 }
 
 .tabs {
@@ -134,9 +136,30 @@ input#global-search{
     background: transparent;
     color: #ffffff;
 }
+
+.light-theme .tab-btn {
+    border: 1px solid #e5e5e5;
+    background: transparent;
+    color: #000;
+}
 .tab-btn:hover {
  color: #44da67;
     background: #292929;
+}
+.light-theme input#global-search{
+    background: #fff;
+}
+.light-theme .search-container:focus-within {
+  border: 2px solid #44da67;
+}
+.light-theme .tab-btn:hover {
+    background: #f5f5f5;
+    color: #44da67;
+    
+}
+.light-theme .tab-btn.active {
+    background: #44da67;
+    color: #fff;
 }
 .tab-btn.active {
     background: #44da67;
@@ -198,7 +221,7 @@ h2.date-title {
 <div class="common-padding">
     <div class="tab-head">
     <h2>Meeting Notes</h2>
-    <span>Review past meetings and track action items</span>
+    <span class="sec-color">Review past meetings and track action items</span>
     </div>
 <!-- HTML -->
 <div class="meeting-notes-container">

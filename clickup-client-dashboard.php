@@ -42,3 +42,27 @@ add_action('wp_enqueue_scripts', function () {
         );
     }
 });
+// Ensure Stripe library is loaded
+add_action('plugins_loaded', function() {
+    if (class_exists('WC_Gateway_Stripe')) {
+        if (!class_exists('WC_Stripe_API')) {
+            $stripe_includes = WP_PLUGIN_DIR . '/woocommerce-gateway-stripe/includes/';
+            if (file_exists($stripe_includes . 'class-wc-stripe-api.php')) {
+                require_once $stripe_includes . 'class-wc-stripe-api.php';
+            }
+        }
+    }
+});
+
+// Prevent direct access to AJAX handlers
+add_action('init', function() {
+    if (defined('DOING_AJAX') && DOING_AJAX) {
+        // Allow AJAX requests
+        return;
+    }
+    
+    // Prevent direct file access
+    if (strpos($_SERVER['REQUEST_URI'], 'billing-ajax-handlers.php') !== false) {
+        wp_die('Direct access not allowed');
+    }
+});

@@ -94,7 +94,7 @@ foreach ($matches as $match) {
 
         <!-- Tab Content -->
         <?php foreach ($tabs as $i => $tab): ?>
-            <div class="common-padding common-border common-padding common-bg campaign-strategy-tabbed-content <?php echo $i === 0 ? 'active' : ''; ?>" data-campaign-strategy-tab="<?php echo esc_attr($tab['slug']); ?>">
+            <div class="common-padding sec-common-radius common-border common-padding common-bg campaign-strategy-tabbed-content <?php echo $i === 0 ? 'active' : ''; ?>" data-campaign-strategy-tab="<?php echo esc_attr($tab['slug']); ?>">
                 <?php echo $tab['body']; ?>
             </div>
         <?php endforeach; ?>

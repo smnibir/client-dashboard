@@ -392,7 +392,7 @@ foreach ($words as $word) {
     width: 40px;
     height: 40px;
     border-radius: 8px;
-    border: 1px solid #2e2e2e;
+    /*border: 1px solid #2e2e2e;*/
     flex-shrink: 0;
 }
 

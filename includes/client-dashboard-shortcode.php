@@ -130,20 +130,20 @@ function render_clickup_client_dashboard() {
             <div class="flex" style="gap:4px">
                                 <div><img src="https://green-salmon-841673.hostingersite.com/wp-content/uploads/2025/07/webgrowth.png"></div>
                 <div class="flex" style="flex-direction: column;">
-                    <span style="font-size: 1.25rem;line-height: 1.8rem;font-weight: 700;letter-spacing: -.025em;">Webgrowth</span>
-                    <span style="font-weight: 500;font-size: .8rem;line-height: 1rem;letter-spacing: -.025em;">Client Portal</span>
+                    <span class="common-color" style="font-size: 1.25rem;line-height: 1.8rem;font-weight: 700;letter-spacing: -.025em;">Webgrowth</span>
+                    <span class="common-color" style="font-weight: 500;font-size: .8rem;line-height: 1rem;letter-spacing: -.025em;">Client Portal</span>
                 </div>
             </div>
                 
 <button type="button" id="theme-toggle" aria-label="Toggle Theme" class="theme-toggle-button" style="max-width: 39px;
     padding: 0px 8px;">
-   Sun Icon (for light mode) 
+   <!--Sun Icon (for light mode) -->
   <svg class="sun-icon h-4 w-4 rotate-0 scale-100 transition-all dark-mode-hidden" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <circle cx="12" cy="12" r="4"></circle>
     <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
   </svg>
 
-   Moon Icon (for dark mode) 
+   <!--Moon Icon (for dark mode) -->
   <svg class="moon-icon h-4 w-4 rotate-90 scale-0 transition-all light-mode-hidden" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
   </svg>
@@ -172,7 +172,7 @@ $tab_index++;
                 ?>
             </ul>
             <!-- User Profile Section at Bottom -->
-            <div class="flex user-profile-section" style="position: absolute; bottom: 0rem; width: calc(100% - 3rem); border-top:1px solid #2e2e2e;">
+            <div class="flex user-profile-section" style="position: absolute; bottom: 0rem; width: calc(100% - 3rem);">
                 <div class="flex user-profile" style="align-items: center; padding: .75rem 1rem; cursor: pointer; width: 100%;">
                     <div class="profile-circle flex" style="color:#000000;width: 40px; height: 40px; border-radius: 50%; align-items: center; justify-content: center; font-weight: bold; margin-right: 10px; <?php echo !$profile_image ? 'background: #44da67;' : ''; ?>">
                         <?php
@@ -183,14 +183,14 @@ $tab_index++;
                         }
                         ?>
                     </div>
-                    <div class="flex" style="flex-direction: column; flex-grow: 1;">
+                    <div class="flex user-dp" style="flex-direction: column; flex-grow: 1;">
                         <span class="text-icon" style="font-size: 1rem;margin: -5px 0"><?php echo esc_html($user_name); ?></span>
-                        <span class="text-icon" style="font-size: .8rem; color: #999999;"><?php echo esc_html($company_name); ?></span>
+                        <span class="text-icon sec-color" style="font-size: .8rem;"><?php echo esc_html($company_name); ?></span>
                     </div>
-                    <div class="dropdown-arrow flex" id="dropdown-arrow" style="font-size: 1.2rem; transition: transform 0.3s;"><svg style="fill: #ffffff;width: 2rem; height: 2rem;" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><path d="M297.4 201.4C309.9 188.9 330.2 188.9 342.7 201.4L502.7 361.4C515.2 373.9 515.2 394.2 502.7 406.7C490.2 419.2 469.9 419.2 457.4 406.7L320 269.3L182.6 406.6C170.1 419.1 149.8 419.1 137.3 406.6C124.8 394.1 124.8 373.8 137.3 361.3L297.3 201.3z"/></svg></div>
+                    <div class="dropdown-arrow flex" id="dropdown-arrow" style="font-size: 1.2rem; transition: transform 0.3s;"><svg class="fill" style="width: 2rem; height: 2rem;" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><path d="M297.4 201.4C309.9 188.9 330.2 188.9 342.7 201.4L502.7 361.4C515.2 373.9 515.2 394.2 502.7 406.7C490.2 419.2 469.9 419.2 457.4 406.7L320 269.3L182.6 406.6C170.1 419.1 149.8 419.1 137.3 406.6C124.8 394.1 124.8 373.8 137.3 361.3L297.3 201.3z"/></svg></div>
                 </div>
                 <div class="dropdown-menu" id="dropdown-menu" style="display: none; position: absolute; bottom: 100%; left: 0; background: #2e2e2e; border-radius: .75rem; width: 100%; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); z-index: 1000; margin-top: .75rem;">
-                     <a href="/account/order/" class="dropdown-item flex" data-action="portal" style="padding: .75rem 1rem; color: #ffffff; text-decoration: none; gap: 5px;">
+                     <a href="/account/orders/" class="dropdown-item flex" data-action="portal" style="padding: .75rem 1rem; color: #ffffff; text-decoration: none; gap: 5px;">
                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"  width="20" height="20" fill="#ffffff"><path d="M64 192L64 224L576 224L576 192C576 156.7 547.3 128 512 128L128 128C92.7 128 64 156.7 64 192zM64 272L64 448C64 483.3 92.7 512 128 512L512 512C547.3 512 576 483.3 576 448L576 272L64 272zM128 424C128 410.7 138.7 400 152 400L200 400C213.3 400 224 410.7 224 424C224 437.3 213.3 448 200 448L152 448C138.7 448 128 437.3 128 424zM272 424C272 410.7 282.7 400 296 400L360 400C373.3 400 384 410.7 384 424C384 437.3 373.3 448 360 448L296 448C282.7 448 272 437.3 272 424z"/></svg>
                          <span>Payment Portal</span></a>
                     <a href="/account" class="dropdown-item flex" data-action="edit-profile" style="padding: .75rem 1rem; color: #ffffff; text-decoration: none; gap: 5px;">
