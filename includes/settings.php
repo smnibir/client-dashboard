@@ -173,3 +173,60 @@ add_action('admin_init', function() {
         return encrypt_value($new_value, $encryption_key);
     }, 10, 2);
 });
+
+
+
+// Add this to your admin settings page
+add_action('admin_menu', function() {
+    add_submenu_page(
+        'clickup-settings',
+        'WhatConverts Settings',
+        'WhatConverts',
+        'manage_options',
+        'whatconverts-settings',
+        function() {
+            ?>
+            <div class="wrap">
+                <h1>WhatConverts Integration Settings</h1>
+                <form method="post" action="options.php">
+                    <?php
+                    settings_fields('whatconverts_settings');
+                    do_settings_sections('whatconverts_settings');
+                    ?>
+                    
+                    <table class="form-table">
+                        <tr>
+                            <th><label for="whatconverts_api_token">API Token:</label></th>
+                            <td>
+                                <input type="password" 
+                                       name="whatconverts_api_token" 
+                                       id="whatconverts_api_token" 
+                                       value="<?php echo esc_attr(get_option('whatconverts_api_token')); ?>" 
+                                       size="50" />
+                            </td>
+                        </tr>
+                        <tr>
+                            <th><label for="whatconverts_api_secret">API Secret:</label></th>
+                            <td>
+                                <input type="password" 
+                                       name="whatconverts_api_secret" 
+                                       id="whatconverts_api_secret" 
+                                       value="<?php echo esc_attr(get_option('whatconverts_api_secret')); ?>" 
+                                       size="50" />
+                            </td>
+                        </tr>
+                    </table>
+                    
+                    <?php submit_button(); ?>
+                </form>
+            </div>
+            <?php
+        }
+    );
+});
+
+// Register settings
+add_action('admin_init', function() {
+    register_setting('whatconverts_settings', 'whatconverts_api_token');
+    register_setting('whatconverts_settings', 'whatconverts_api_secret');
+});

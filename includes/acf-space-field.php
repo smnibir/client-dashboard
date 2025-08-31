@@ -104,3 +104,31 @@ add_filter('acf/load_field/name=clickup_subfolder', function ($field) {
 
     return $field;
 });
+
+
+
+add_filter('acf/load_field/name=lead_account', function($field) {
+    $field['choices'] = [];
+    
+    // Get WhatConverts API credentials from options
+    $api_token = get_option('whatconverts_api_token');
+    $api_secret = get_option('whatconverts_api_secret');
+    
+    if (!$api_token || !$api_secret) {
+        $field['choices'][''] = 'Please configure WhatConverts API credentials';
+        return $field;
+    }
+    
+    // Fetch accounts from WhatConverts API
+    $accounts = fetch_whatconverts_accounts($api_token, $api_secret);
+    
+    if (!empty($accounts)) {
+        foreach ($accounts as $account) {
+            $field['choices'][$account['account_id']] = $account['account_name'];
+        }
+    } else {
+        $field['choices'][''] = 'No accounts found';
+    }
+    
+    return $field;
+});
