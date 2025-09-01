@@ -19,6 +19,7 @@ require_once plugin_dir_path(__FILE__) . 'includes/billing-ajax-handlers.php';
 require_once plugin_dir_path(__FILE__) . 'includes/api-endpoints.php';
 
 
+
 wp_localize_script(
     'clickup-admin-js',
     'clickup_ajax',

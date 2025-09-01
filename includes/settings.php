@@ -1,4 +1,5 @@
 <?php
+
 // Define encryption key (store securely in wp-config.php or environment variable)
 // Example 32-character key (replace with your own secure key in wp-config.php)
 $encryption_key = defined('CLICKUP_ENCRYPTION_KEY') ? CLICKUP_ENCRYPTION_KEY : 'X7k9pLmQwXyZaBvNxRk4tPq7s8vY2mHo3'; // Exactly 32 chars

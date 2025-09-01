@@ -166,13 +166,10 @@ function fetch_whatconverts_leads() {
             'phone_number' => $lead['phone_number'] ?? '-',
             'lead_status' => ucwords($lead['lead_status'] ?? 'new'),
             'source' => $lead['lead_source'] ?? '-',
-            'ip_address' => $lead['ip_address'] ?? '-',
             'medium' => $lead['lead_medium'] ?? '-',
             'campaign' => $lead['lead_campaign'] ?? '-',
             'lead_summary' => $lead['lead_summary'] ?? $lead['lead_notes'] ?? '-',
-            'created_at' => $lead['date_created'] ?? date('Y-m-d H:i:s'),
-            'message' => $lead['message'] ?? '-',
-            'call_duration' => $lead['call_duration'] ?? '-'
+            'created_at' => $lead['date_created'] ?? date('Y-m-d H:i:s')
         ];
     }, $body['leads'] ?? []);
     
@@ -258,13 +255,13 @@ function fetch_lead_details() {
         'email' => $lead_data['email_address'] ?? $lead_data['email'] ?? 'N/A',
         'phone_number' => $lead_data['phone_number'] ?? 'N/A',
         'lead_type' => $lead_data['lead_type'] ?? 'N/A',
-        'source' => $lead_data['lead_source'] ?? $lead_data['lead_source'] ?? 'N/A',
+        'source' => $lead_data['lead_source'] ?? $lead_data['source'] ?? 'N/A',
+        'medium' => $lead_data['lead_medium'] ?? $lead_data['medium'] ?? 'N/A',
         'campaign' => $lead_data['lead_campaign'] ?? $lead_data['campaign'] ?? 'N/A',
         'keyword' => $lead_data['lead_keyword'] ?? $lead_data['keyword'] ?? 'N/A',
         'landing_page' => $lead_data['landing_url'] ?? $lead_data['landing_page_url'] ?? $lead_data['landing_page'] ?? 'N/A',
         'referring_url' => $lead_data['referring_url'] ?? 'N/A',
         'ip_address' => $lead_data['ip_address'] ?? 'N/A',
-        'message' => $lead_data['message'] ?? 'N/A',
         'city' => $lead_data['city'] ?? 'N/A',
         'state' => $lead_data['state'] ?? $lead_data['state_or_province'] ?? 'N/A',
         'country' => $lead_data['country'] ?? 'N/A',
@@ -279,8 +276,8 @@ function fetch_lead_details() {
     
     // Try to get call recording if it's a phone lead
     if (isset($lead_data['lead_type']) && 
-        (stripos($lead_data['lead_type'], 'Phone Call') !== false || 
-         stripos($lead_data['lead_type'], 'Phone Call') !== false)) {
+        (stripos($lead_data['lead_type'], 'phone') !== false || 
+         stripos($lead_data['lead_type'], 'call') !== false)) {
         
         error_log('Fetching recording for phone lead: ' . $lead_id); // Debug log
         

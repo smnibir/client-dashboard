@@ -28,12 +28,12 @@ if (!$account_id) {
                     <option value="365">Last Year</option>
                 </select>
             </div>
-            
-            <div class="status-filter">
+             
+            <div class="status-filter" style="display: none;">
                 <label>Status:</label>
                 <select id="lead-status-filter">
                     <option value="">All Statuses</option>
-                    <!-- Will be populated dynamically -->
+                     Will be populated dynamically 
                 </select>
             </div>
             
@@ -45,11 +45,11 @@ if (!$account_id) {
                 </select>
             </div>
             
-            <div class="type-filter">
+            <div class="type-filter" style="display: none;">
                 <label>Type:</label>
                 <select id="lead-type-filter">
                     <option value="">All Types</option>
-                    <!-- Will be populated dynamically -->
+                     Will be populated dynamically 
                 </select>
             </div>
             
@@ -68,6 +68,7 @@ if (!$account_id) {
                     <th>Status</th>
                     <th>Source</th>
                     <th>Medium</th>
+                    <th>Duration</th>
                     <th>Action</th>
                 </tr>
             </thead>
@@ -816,6 +817,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <td><span class="lead-status ${statusClass}">${lead.lead_status}</span></td>
                 <td>${lead.source || '-'}</td>
                 <td>${lead.medium || '-'}</td>
+                <td>${lead.call_duration || '-'}</td>
                 <td>
                     <button class="btn-view-lead" data-lead-id="${lead.lead_id}">
                         View Details
@@ -1004,10 +1006,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="value">${lead.lead_type || 'N/A'}</div>
                 </div>
                 <div class="lead-detail-item">
-                    <label>Source / Medium</label>
-                    <div class="value">${lead.source || 'N/A'} / ${lead.medium || 'N/A'}</div>
-                </div>
-                <div class="lead-detail-item">
                     <label>Campaign</label>
                     <div class="value">${lead.campaign || 'N/A'}</div>
                 </div>
@@ -1070,12 +1068,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Add transcript if available
-        if (lead.transcript) {
+        if (lead.message) {
             html += `
                 <div class="lead-section">
-                    <h4>Call Transcript</h4>
+                    <h4>Message</h4>
                     <div class="transcript-box">
-                        ${lead.transcript}
+                        ${lead.message}
                     </div>
                 </div>
             `;
