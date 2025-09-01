@@ -1,37 +1,40 @@
-<?php
-if (preg_match('/\\((https?:\\/\\/reports\\.webgrowth\\.io\\/[^\\s]+)\\)/', $content, $match)) {
-    $iframe_url = $match[1];
-} elseif (preg_match('/\\((https?:\\/\\/forms\\.clickup\\.com\\/[^\\s]+)\\)/', $content, $match)) {
-    $iframe_url = $match[1];
-}
-?>
-
-<?php if ($iframe_url): ?>
 <div class="common-padding">
     <div class="tab-head" style="z-index: 9999;">
     <h2>Support Center</h2>
     <span>Get help with any questions or issues you're experiencing</span>
     
 </div>
-    <div class="flex" style="z-index: 9;gap: 1rem;">
-        <iframe src="<?php echo esc_url($iframe_url); ?>" style="height:1140px;width: 100vw;border-radius: 1rem;" frameborder="0" rel="preload"></iframe>
+    <div class="" style="z-index: 9;gap: 1rem;display: grid
+;
+    grid-template-columns: 8fr 4fr;">
+    <div class="response-times">
+        <h3 style="display: flex; gap: 7px;"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" color="#44da67" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-message-square w-5 h-5 text-primary" data-lov-id="src/components/portal/SupportForm.tsx:91:14" data-lov-name="MessageSquare" data-component-path="src/components/portal/SupportForm.tsx" data-component-line="91" data-component-file="SupportForm.tsx" data-component-name="MessageSquare" data-component-content="%7B%22className%22%3A%22w-5%20h-5%20text-primary%22%7D"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg> Submit Support Request</h3>
+                <?php
+      // Prefer gravity_form() if available; fallback to shortcode.
+      if (function_exists('gravity_form')) {
+          gravity_form(1, false, false, false, '', true); // id=1, no title/desc, AJAX on
+      } else {
+          echo do_shortcode('[gravityform id="1" title="false" description="false" ajax="true"]');
+      }
+      ?>
+    </div>
         <div>
             <div class="support-container">
               <div class="response-times">
                 <h3>Response Times</h3>
                 <ul>
-                  <li><span class="dot low"></span> <div class="priority-status"><span>Low Priority</span> <span>24–48 hours</span></div></li>
-                  <li><span class="dot medium"></span> <div class="priority-status"><span>Medium Priority</span> <span>4–24 hours</span></div></li>
-                  <li><span class="dot urgent"></span><div class="priority-status"> <span>Urgent</span> <span>1–4 hours</span></div></li>
+                  <li><span class="dot low"></span> <div class="priority-status"><span>Normal Priority</span> <span>24–48 hours</span></div></li>
+                  <li><span class="dot medium"></span> <div class="priority-status"><span>High Priority</span> <span>4–24 hours</span></div></li>
+                  <li><span class="dot urgent"></span><div class="priority-status"> <span>Urgent Priority</span> <span>1–4 hours</span></div></li>
                 </ul>
               </div>
             
               <div class="immediate-help">
                 <h3>Need Immediate Help?</h3>
                 <p style="color:#999;margin-bottom: 0.9rem;">For urgent issues, contact your account manager directly:</p>
-                <p class="manager-name" style="font-size: 0.975rem;margin-bottom: 0.6em;">Webgrowth Support Bot</p>
-                <p class="email" style="margin-bottom: 0em;">support@webgrowth.io</p>
-                <p class="phone">480.331.5849</p>
+                <p class="manager-name" style="font-size: 0.975rem;margin-bottom: 0.6em;">Webgrowth Support</p>
+                <p class="email" style="margin-bottom: 0em;"><a href="mailto:support@webgrowth.io">support@webgrowth.io</a></p>
+                <p class="phone"><a href="te;:480.331.5849">480.331.5849</a></p>
                <a href="tel:480.331.5849" class="quick-call">
   <span class="icon">
     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -48,7 +51,7 @@ if (preg_match('/\\((https?:\\/\\/reports\\.webgrowth\\.io\\/[^\\s]+)\\)/', $con
             </div>
         </div>
     </div>
-</div>
+
     <style>
 
 .support-container {
@@ -56,7 +59,7 @@ if (preg_match('/\\((https?:\\/\\/reports\\.webgrowth\\.io\\/[^\\s]+)\\)/', $con
   margin:  auto;
   /*padding: 20px;*/
   border-radius: 10px;
-  height: 100vh;
+  /*height: 100vh;*/
   background: #111111;
 }
 
@@ -100,15 +103,15 @@ if (preg_match('/\\((https?:\\/\\/reports\\.webgrowth\\.io\\/[^\\s]+)\\)/', $con
 }
 
 .low {
-  background-color: #00c853;
+  background-color: #3e63dd;
 }
 
 .medium {
-  background-color: #ffab00;
+  background-color: #ffc53d;
 }
 
 .urgent {
-  background-color: #d50000;
+  background-color: rgb(255, 133, 137);
 }
 
 .manager-name {
@@ -147,7 +150,134 @@ if (preg_match('/\\((https?:\\/\\/reports\\.webgrowth\\.io\\/[^\\s]+)\\)/', $con
   font-size: 16px;
 }
 
+/* Hide the real select */
+#input_1_7.gfield_select {
+  position: absolute !important;
+  width: 1px !important; height: 1px !important;
+  overflow: hidden !important; clip: rect(0 0 0 0) !important;
+  white-space: nowrap !important; border: 0 !important;
+}
+
+/* Custom wrapper */
+.urgency-select { position: relative; min-height: 48px;}
+
+/* Button */
+.urgency-button {
+  display:flex; justify-content:space-between; align-items:center;
+  width:100%; min-height: 48px; border:1px solid #2e2e2e; border-radius:8px;
+  background:#1f1f1f; cursor:pointer;
+}
+.light-theme .urgency-button {
+  display:flex; justify-content:space-between; align-items:center;
+  width:100%; min-height: 48px; border:1px solid #e5e5e5; border-radius:8px;
+  background:#f5f5f5; cursor:pointer;
+}
+.urgency-select button{
+    color: #999999;
+}
+.urgency-current , .urgency-current span{ display:flex; align-items:center; gap:.5rem; }
+
+/* Menu */
+.urgency-menu {
+  position:absolute; top:100%; left:0; right:0; margin-top:4px;
+ border:1px solid #ccc; border-radius:6px;
+  box-shadow:0 4px 12px rgba(0,0,0,.1); z-index:1000;
+}
+.light-theme .urgency-menu {
+  position:absolute; top:100%; left:0; right:0; margin-top:4px;
+  background:#fff; border:1px solid #ccc; border-radius:6px;
+  box-shadow:0 4px 12px rgba(0,0,0,.1); z-index:1000;
+}
+.urgency-menu[hidden]{display:none;}
+.urgency-option {
+  width:100%; text-align:left; padding:.5rem .8rem; border:0; background:#fff;
+  display:flex; align-items:center; gap:.5rem; cursor:pointer;
+}
+.urgency-option:hover{background:#f3f4f6;}
+
+/* Badge icons */
+.urgency-icon{width:14px;height:14px;border-radius:50%;display:inline-block;}
+.urgency--Urgent .urgency-icon{background:#dc2626;margin-right: 8px;}
+.urgency--High   .urgency-icon{background:#ea580c;margin-right: 8px;}
+.urgency--Normal .urgency-icon{background:#2563eb;margin-right: 8px;}
+.urgency--Low    .urgency-icon{background:#9ca3af;margin-right: 8px;}
+
+button.urgency-option span{
+    display: flex
+;
+    align-content: center;
+    align-items: center;
+}
     </style>
-<?php else: ?>
-    <p>No valid report URL found in content.</p>
-<?php endif; ?>
+
+<script>
+(function(){
+  const SELECT_ID = 'input_1_7';
+  const COLORS = {
+    'Urgent': 'urgency--Urgent',
+    'High': 'urgency--High',
+    'Normal': 'urgency--Normal',
+    'Low': 'urgency--Low'
+  };
+
+  function buildItem(label){
+    const cls = COLORS[label] || 'urgency--Low';
+    return `<span class="${cls} urgency-badge"><span class="urgency-icon"></span><span>${label}</span></span>`;
+  }
+
+  function enhance(select){
+    if(!select || select.dataset.enhanced) return;
+    select.dataset.enhanced = "1";
+
+    const wrap = document.createElement('div');
+    wrap.className = 'urgency-select';
+    select.parentNode.insertBefore(wrap, select);
+    wrap.appendChild(select);
+
+    const btn = document.createElement('button');
+    btn.type = "button"; btn.className = "urgency-button";
+    const current = document.createElement('span');
+    current.className = 'urgency-current';
+    btn.appendChild(current);
+    wrap.appendChild(btn);
+
+    const menu = document.createElement('div');
+    menu.className = 'urgency-menu'; menu.hidden = true;
+    wrap.appendChild(menu);
+
+    // Build options
+    Array.from(select.options).forEach(opt=>{
+      const val = opt.value, lbl = opt.text.trim();
+      const item = document.createElement('button');
+      item.type="button"; item.className="urgency-option";
+      item.innerHTML = (val ? buildItem(lbl) : lbl);
+      item.addEventListener('click', ()=>{
+        select.value = val;
+        select.dispatchEvent(new Event('change',{bubbles:true}));
+        render();
+        menu.hidden=true;
+      });
+      menu.appendChild(item);
+    });
+
+    function render(){
+      const opt = select.options[select.selectedIndex];
+      current.innerHTML = opt.value ? buildItem(opt.text) : opt.text;
+    }
+
+    btn.addEventListener('click', ()=>{ menu.hidden = !menu.hidden; });
+    document.addEventListener('click', e=>{
+      if(!wrap.contains(e.target)) menu.hidden = true;
+    });
+
+    render();
+  }
+
+  function init(){
+    const s = document.getElementById(SELECT_ID);
+    if(s) enhance(s);
+  }
+  document.addEventListener('DOMContentLoaded', init);
+  document.addEventListener('gform_post_render', init);
+})();
+</script>

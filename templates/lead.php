@@ -521,6 +521,7 @@ audio {
     align-items: flex-start;
     border-bottom: 1px solid #2e2e2e;
     padding-bottom: 0.75rem;
+	flex-direction: column;
 }
 
 .form-field-row:last-child {
