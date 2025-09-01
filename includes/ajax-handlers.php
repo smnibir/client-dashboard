@@ -1,11 +1,5 @@
 <?php
 
-
-
-
-
-
-
 // Get Folders for a Space
 add_action('wp_ajax_get_clickup_folders', function () {
     $space_id = sanitize_text_field($_POST['space_id']);
@@ -48,7 +42,7 @@ add_action('wp_ajax_get_clickup_views', function () {
     wp_send_json_success($views);
 });
 
-// wc
+// WhatConverts Functions
 // Fetch WhatConverts accounts
 function fetch_whatconverts_accounts($token, $secret) {
     $url = 'https://app.whatconverts.com/api/v1/accounts';
@@ -195,7 +189,7 @@ function fetch_whatconverts_leads() {
     ]);
 }
 
-// AJAX handler to fetch lead details with recording
+// AJAX handler to fetch lead details - ENHANCED VERSION WITH CONDITIONAL SECTIONS
 add_action('wp_ajax_fetch_lead_details', 'fetch_lead_details');
 add_action('wp_ajax_nopriv_fetch_lead_details', 'fetch_lead_details');
 
@@ -217,109 +211,297 @@ function fetch_lead_details() {
         wp_send_json_error('API credentials not configured', 500);
     }
     
-    // Fetch lead details
-    $url = "https://app.whatconverts.com/api/v1/leads/$lead_id";
+    // Get user's account ID
+    $user_id = get_current_user_id();
+    $account_id = get_field('lead_account', 'user_' . $user_id);
     
-    error_log('Fetching lead details from: ' . $url); // Debug log
-    
-    $response = wp_remote_get($url, [
-        'headers' => [
-            'Authorization' => 'Basic ' . base64_encode($api_token . ':' . $api_secret),
-            'Content-Type' => 'application/json'
-        ],
-        'timeout' => 30
-    ]);
-    
-    if (is_wp_error($response)) {
-        error_log('WhatConverts lead details API error: ' . $response->get_error_message());
-        wp_send_json_error('Failed to fetch lead details: ' . $response->get_error_message(), 500);
+    if (!$account_id) {
+        error_log('No account ID found for user: ' . $user_id);
+        wp_send_json_error('No account selected', 400);
     }
     
-    $response_code = wp_remote_retrieve_response_code($response);
-    $body = wp_remote_retrieve_body($response);
+    // Try different URL variations for the WhatConverts API
+    $urls_to_try = [
+        "https://app.whatconverts.com/api/v1/leads/$lead_id?account_id=$account_id",
+        "https://app.whatconverts.com/api/v1/leads/$lead_id",
+        "https://app.whatconverts.com/api/v1/accounts/$account_id/leads/$lead_id"
+    ];
     
-    error_log('Lead details response code: ' . $response_code); // Debug log
-    error_log('Lead details response body: ' . substr($body, 0, 500)); // Debug log first 500 chars
+    $lead_data = null;
+    $successful_url = '';
     
-    if ($response_code !== 200) {
-        wp_send_json_error('Failed to fetch lead details. Response code: ' . $response_code, $response_code);
+    foreach ($urls_to_try as $url) {
+        error_log('=== Trying URL: ' . $url . ' ===');
+        
+        $response = wp_remote_get($url, [
+            'headers' => [
+                'Authorization' => 'Basic ' . base64_encode($api_token . ':' . $api_secret),
+                'Content-Type' => 'application/json'
+            ],
+            'timeout' => 30
+        ]);
+        
+        if (is_wp_error($response)) {
+            error_log('API Error for URL ' . $url . ': ' . $response->get_error_message());
+            continue;
+        }
+        
+        $response_code = wp_remote_retrieve_response_code($response);
+        $body = wp_remote_retrieve_body($response);
+        
+        error_log('Response Code for ' . $url . ': ' . $response_code);
+        
+        if ($response_code === 200) {
+            $decoded_data = json_decode($body, true);
+            if ($decoded_data && !empty($decoded_data)) {
+                $lead_data = $decoded_data;
+                $successful_url = $url;
+                error_log('SUCCESS with URL: ' . $url);
+                break;
+            }
+        } else {
+            error_log('Error response from ' . $url . ': ' . substr($body, 0, 200));
+        }
     }
-    
-    $lead_data = json_decode($body, true);
     
     if (!$lead_data) {
-        wp_send_json_error('Invalid response format', 500);
+        wp_send_json_error('Failed to fetch lead details from any endpoint', 500);
     }
     
-    // Map all possible fields from the API response
+    error_log('=== DETAILED API RESPONSE ANALYSIS ===');
+    error_log('Successful URL: ' . $successful_url);
+    error_log('Top-level keys: ' . implode(', ', array_keys($lead_data)));
+    
+    // Find the actual lead data (it might be nested)
+    $actual_lead_data = $lead_data;
+    
+    // Check all possible nesting structures
+    $possible_containers = ['lead', 'data', 'result', 'leads', 'contact', 'record'];
+    foreach ($possible_containers as $container) {
+        if (isset($lead_data[$container]) && is_array($lead_data[$container])) {
+            error_log('Found data in container: ' . $container);
+            $actual_lead_data = $lead_data[$container];
+            break;
+        }
+    }
+    
+    // If leads is an array, get the first one
+    if (isset($actual_lead_data[0]) && is_array($actual_lead_data[0])) {
+        error_log('Data appears to be an array, taking first element');
+        $actual_lead_data = $actual_lead_data[0];
+    }
+    
+    error_log('Final lead data keys: ' . implode(', ', array_keys($actual_lead_data)));
+    
+    // Comprehensive field mapping function
+    function findFieldValue($data, $possible_fields) {
+        foreach ($possible_fields as $field) {
+            if (isset($data[$field]) && !empty($data[$field]) && $data[$field] !== '' && $data[$field] !== null) {
+                error_log('Found value for field group in: ' . $field . ' = ' . $data[$field]);
+                return $data[$field];
+            }
+        }
+        return null;
+    }
+    
+    // Comprehensive field mappings
+    $name_fields = [
+        'quotable_name', 'name', 'contact_name', 'full_name', 'customer_name', 
+        'lead_name', 'client_name', 'first_name', 'caller_name'
+    ];
+    
+    $email_fields = [
+        'email_address', 'email', 'contact_email', 'lead_email', 'customer_email', 'caller_email'
+    ];
+    
+    $phone_fields = [
+        'phone_number', 'phone', 'contact_phone', 'lead_phone', 'customer_phone', 
+        'phone_no', 'caller_phone', 'phone_num', 'telephone'
+    ];
+    
+    $type_fields = [
+        'lead_type', 'type', 'contact_type', 'conversion_type', 'call_type'
+    ];
+    
+    $source_fields = [
+        'lead_source', 'source', 'traffic_source', 'utm_source', 'referrer_source'
+    ];
+    
+    $campaign_fields = [
+        'lead_campaign', 'campaign', 'campaign_name', 'utm_campaign'
+    ];
+    
+    $landing_fields = [
+        'landing_url', 'landing_page_url', 'landing_page', 'page_url', 'url'
+    ];
+    
+    $message_fields = [
+        'message', 'notes', 'content', 'description', 'details', 'comment'
+    ];
+    
+    $date_fields = [
+        'date_created', 'created_at', 'timestamp', 'date', 'time_created'
+    ];
+    
+    // Extract values using the mapping
+    $name = findFieldValue($actual_lead_data, $name_fields);
+    $email = findFieldValue($actual_lead_data, $email_fields);
+    $phone = findFieldValue($actual_lead_data, $phone_fields);
+    $lead_type = findFieldValue($actual_lead_data, $type_fields);
+    $source = findFieldValue($actual_lead_data, $source_fields);
+    $campaign = findFieldValue($actual_lead_data, $campaign_fields);
+    $landing_page = findFieldValue($actual_lead_data, $landing_fields);
+    $message = findFieldValue($actual_lead_data, $message_fields);
+    $date_created = findFieldValue($actual_lead_data, $date_fields);
+    
+    // Create contact display
+    $contact_parts = array_filter([$name]);
+    $contact_display = !empty($contact_parts) ? implode(' | ', $contact_parts) : 'No contact information';
+    
+    // Build the final lead array
     $lead = [
-        'lead_id' => $lead_data['lead_id'] ?? $lead_id,
-        'name' => $lead_data['quotable_name'] ?? $lead_data['name'] ?? 'N/A',
-        'email' => $lead_data['email_address'] ?? $lead_data['email'] ?? 'N/A',
-        'phone_number' => $lead_data['phone_number'] ?? 'N/A',
-        'lead_type' => $lead_data['lead_type'] ?? 'N/A',
-        'source' => $lead_data['lead_source'] ?? $lead_data['lead_source'] ?? 'N/A',
-        'campaign' => $lead_data['lead_campaign'] ?? $lead_data['campaign'] ?? 'N/A',
-        'keyword' => $lead_data['lead_keyword'] ?? $lead_data['keyword'] ?? 'N/A',
-        'landing_page' => $lead_data['landing_url'] ?? $lead_data['landing_page_url'] ?? $lead_data['landing_page'] ?? 'N/A',
-        'referring_url' => $lead_data['referring_url'] ?? 'N/A',
-        'ip_address' => $lead_data['ip_address'] ?? 'N/A',
-        'message' => $lead_data['message'] ?? 'N/A',
-        'city' => $lead_data['city'] ?? 'N/A',
-        'state' => $lead_data['state'] ?? $lead_data['state_or_province'] ?? 'N/A',
-        'country' => $lead_data['country'] ?? 'N/A',
-        'lead_summary' => $lead_data['lead_notes'] ?? $lead_data['lead_summary'] ?? $lead_data['details'] ?? 'No summary available',
-        'lead_value' => $lead_data['lead_value'] ?? $lead_data['value'] ?? 'N/A',
-        'date_created' => $lead_data['date_created'] ?? 'N/A',
-        'form_data' => $lead_data['additional_fields'] ?? $lead_data['form_data'] ?? null,
+        'lead_id' => $actual_lead_data['lead_id'] ?? $actual_lead_data['id'] ?? $lead_id,
+        'contactDisplay' => $contact_display,
+        'name' => $name ?: 'No name available',
+        'email' => $email ?: 'No email available',
+        'phone_number' => $phone ?: 'No phone available',
+        'lead_type' => $lead_type ?: 'Unknown type',
+        'source' => $source ?: 'Unknown source',
+        'campaign' => $campaign ?: 'No campaign',
+        'keyword' => $actual_lead_data['lead_keyword'] ?? $actual_lead_data['keyword'] ?? $actual_lead_data['utm_term'] ?? 'No keyword',
+        'landing_page' => $landing_page ?: 'No landing page',
+        'referring_url' => $actual_lead_data['referring_url'] ?? $actual_lead_data['referrer'] ?? $actual_lead_data['utm_referrer'] ?? 'No referring URL',
+        'ip_address' => $actual_lead_data['ip_address'] ?? $actual_lead_data['ip'] ?? 'No IP address',
+        'message' => $message ?: 'No message',
+        'city' => $actual_lead_data['city'] ?? 'Unknown city',
+        'state' => $actual_lead_data['state'] ?? $actual_lead_data['state_or_province'] ?? $actual_lead_data['region'] ?? 'Unknown state',
+        'country' => $actual_lead_data['country'] ?? $actual_lead_data['country_code'] ?? 'Unknown country',
+        'lead_summary' => $actual_lead_data['lead_notes'] ?? $actual_lead_data['lead_summary'] ?? $actual_lead_data['summary'] ?? $message ?? 'No summary available',
+        'lead_value' => $actual_lead_data['lead_value'] ?? $actual_lead_data['value'] ?? $actual_lead_data['revenue'] ?? 'No value',
+        'date_created' => $date_created ?: 'Unknown date',
+        'form_data' => $actual_lead_data['additional_fields'] ?? $actual_lead_data['form_data'] ?? $actual_lead_data['custom_fields'] ?? $actual_lead_data['extra_data'] ?? null,
         'recording_url' => null,
         'recording_duration' => 0,
         'transcript' => null
     ];
     
-    // Try to get call recording if it's a phone lead
-    if (isset($lead_data['lead_type']) && 
-        (stripos($lead_data['lead_type'], 'Phone Call') !== false || 
-         stripos($lead_data['lead_type'], 'Phone Call') !== false)) {
+    // Enhanced recording detection for phone leads
+    $is_phone_lead = ($lead_type && (
+        stripos($lead_type, 'phone') !== false || 
+        stripos($lead_type, 'call') !== false ||
+        stripos($lead_type, 'voice') !== false ||
+        stripos($lead_type, 'telephone') !== false
+    ));
+
+    if ($is_phone_lead || !empty($actual_lead_data['recording_url']) || !empty($actual_lead_data['call_recording'])) {
+        error_log('Attempting to fetch recording for phone lead or lead with recording data...');
         
-        error_log('Fetching recording for phone lead: ' . $lead_id); // Debug log
+        // First check if recording URL is already in the lead data
+        $recording_url_fields = [
+            'play_recording', 'recording', 'recording_url', 'call_recording', 'audio_url', 
+            'recording_file', 'call_audio', 'phone_recording', 'audio_file'
+        ];
         
-        // Check if recording URL is already in the lead data
-        if (!empty($lead_data['recording_url'])) {
-            $lead['recording_url'] = $lead_data['recording_url'];
-            $lead['recording_duration'] = $lead_data['recording_duration'] ?? $lead_data['duration_in_seconds'] ?? 0;
-        } else {
-            // Try to fetch recording separately
-            $recording_url = "https://app.whatconverts.com/api/v1/leads/$lead_id/recording";
-            
-            $recording_response = wp_remote_get($recording_url, [
-                'headers' => [
-                    'Authorization' => 'Basic ' . base64_encode($api_token . ':' . $api_secret),
-                    'Content-Type' => 'application/json'
-                ],
-                'timeout' => 30
-            ]);
-            
-            if (!is_wp_error($recording_response) && wp_remote_retrieve_response_code($recording_response) === 200) {
-                $recording_data = json_decode(wp_remote_retrieve_body($recording_response), true);
+        foreach ($recording_url_fields as $field) {
+            if (!empty($actual_lead_data[$field])) {
+                $lead['recording_url'] = $actual_lead_data[$field];
+                // Get duration from multiple possible sources
+                $duration = $actual_lead_data['recording_duration'] ?? 
+                           $actual_lead_data['duration_in_seconds'] ?? 
+                           $actual_lead_data['call_duration'] ?? 
+                           $actual_lead_data['duration'] ?? 0;
                 
-                if (isset($recording_data['recording_url'])) {
-                    $lead['recording_url'] = $recording_data['recording_url'];
-                    $lead['recording_duration'] = $recording_data['duration_in_seconds'] ?? 0;
-                    error_log('Recording found: ' . $lead['recording_url']); // Debug log
+                // Convert duration to seconds if it's in other formats
+                if (is_string($duration) && strpos($duration, ':') !== false) {
+                    // Convert MM:SS to seconds
+                    $parts = explode(':', $duration);
+                    $duration = (int)$parts[0] * 60 + (int)$parts[1];
                 }
-            } else {
-                error_log('No recording available for lead: ' . $lead_id);
+                
+                $lead['recording_duration'] = (int)$duration;
+                error_log('Recording found in lead data field: ' . $field . ' = ' . $lead['recording_url'] . ' (duration: ' . $duration . ' seconds)');
+                break;
             }
         }
         
-        // Try to get transcript if available
-        if (!empty($lead_data['transcript'])) {
-            $lead['transcript'] = $lead_data['transcript'];
+        // If no recording URL found, try separate API calls
+        if (!$lead['recording_url']) {
+            $recording_endpoints = [
+                "https://app.whatconverts.com/api/v1/leads/$lead_id/recording?account_id=$account_id",
+                "https://app.whatconverts.com/api/v1/leads/$lead_id/recording",
+                "https://app.whatconverts.com/api/v1/accounts/$account_id/leads/$lead_id/recording",
+                "https://app.whatconverts.com/api/v1/leads/$lead_id/audio",
+                "https://app.whatconverts.com/api/v1/calls/$lead_id/recording"
+            ];
+            
+            foreach ($recording_endpoints as $recording_endpoint) {
+                error_log('Trying recording endpoint: ' . $recording_endpoint);
+                
+                $recording_response = wp_remote_get($recording_endpoint, [
+                    'headers' => [
+                        'Authorization' => 'Basic ' . base64_encode($api_token . ':' . $api_secret),
+                        'Content-Type' => 'application/json'
+                    ],
+                    'timeout' => 30
+                ]);
+                
+                if (!is_wp_error($recording_response)) {
+                    $recording_code = wp_remote_retrieve_response_code($recording_response);
+                    $recording_body = wp_remote_retrieve_body($recording_response);
+                    
+                    error_log('Recording endpoint response code: ' . $recording_code);
+                    
+                    if ($recording_code === 200) {
+                        $recording_data = json_decode($recording_body, true);
+                        error_log('Recording response: ' . json_encode($recording_data));
+                        
+                        // Check various possible response formats
+                        $recording_url = null;
+                        if (!empty($recording_data['recording_url'])) {
+                            $recording_url = $recording_data['recording_url'];
+                        } elseif (!empty($recording_data['url'])) {
+                            $recording_url = $recording_data['url'];
+                        } elseif (!empty($recording_data['audio_url'])) {
+                            $recording_url = $recording_data['audio_url'];
+                        } elseif (!empty($recording_data['file_url'])) {
+                            $recording_url = $recording_data['file_url'];
+                        } elseif (is_string($recording_data) && filter_var($recording_data, FILTER_VALIDATE_URL)) {
+                            $recording_url = $recording_data;
+                        }
+                        
+                        if ($recording_url) {
+                            $lead['recording_url'] = $recording_url;
+                            $lead['recording_duration'] = $recording_data['duration_in_seconds'] ?? 
+                                                        $recording_data['duration'] ?? 
+                                                        $recording_data['call_duration'] ?? 0;
+                            error_log('Recording found via API endpoint: ' . $recording_url);
+                            break;
+                        }
+                    }
+                } else {
+                    error_log('Recording endpoint error: ' . $recording_response->get_error_message());
+                }
+            }
+        }
+    }
+
+    // Enhanced transcript detection
+    if (!$lead['transcript']) {
+        $transcript_fields = [
+            'transcript', 'call_transcript', 'transcription', 'speech_to_text', 'converted_text'
+        ];
+        
+        foreach ($transcript_fields as $field) {
+            if (!empty($actual_lead_data[$field])) {
+                $lead['transcript'] = $actual_lead_data[$field];
+                error_log('Transcript found in field: ' . $field);
+                break;
+            }
         }
     }
     
-    error_log('Sending lead details: ' . json_encode($lead)); // Debug log
+    error_log('=== FINAL PROCESSED LEAD DATA ===');
+    error_log(json_encode($lead, JSON_PRETTY_PRINT));
     
     wp_send_json_success($lead);
 }
@@ -421,5 +603,3 @@ function fetch_lead_filters() {
     
     wp_send_json_success($filter_data);
 }
-
-

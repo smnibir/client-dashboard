@@ -803,7 +803,7 @@ $plan_duration = $billing_interval;
 }
 
 /* Modal */
-.modal {
+.billing-container .modal {
     position: fixed;
     top: 0;
     left: 0;
@@ -816,14 +816,14 @@ $plan_duration = $billing_interval;
     z-index: 9999;
 }
 
-.modal-content {
+.billing-container .modal-content {
     background: #1a1a1a;
     border: 1px solid #2e2e2e;
     border-radius: 10px;
     width: 90%;
     max-width: 500px;
     max-height: 90vh;
-    overflow-y: auto;
+    /*overflow-y: auto;*/
 }
 
 .modal-header {

@@ -17,6 +17,12 @@ require_once plugin_dir_path(__FILE__) . 'includes/enqueue-admin-scripts.php';
 require_once plugin_dir_path(__FILE__) . 'includes/parsedown.php';
 require_once plugin_dir_path(__FILE__) . 'includes/billing-ajax-handlers.php';
 require_once plugin_dir_path(__FILE__) . 'includes/api-endpoints.php';
+require_once plugin_dir_path(__FILE__) . 'includes/class-gf-clickup.php';
+// Add this line to make sure the file loads
+require_once __DIR__ . '/includes/class-gf-clickup.php';
+
+// OR if it's in functions.php:
+
 
 
 

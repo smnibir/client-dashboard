@@ -33,7 +33,7 @@ if (!$account_id) {
                 <label>Status:</label>
                 <select id="lead-status-filter">
                     <option value="">All Statuses</option>
-                     Will be populated dynamically 
+                     <!-- Will be populated dynamically -->
                 </select>
             </div>
             
@@ -49,7 +49,7 @@ if (!$account_id) {
                 <label>Type:</label>
                 <select id="lead-type-filter">
                     <option value="">All Types</option>
-                     Will be populated dynamically 
+                     <!-- Will be populated dynamically -->
                 </select>
             </div>
             
@@ -320,10 +320,10 @@ if (!$account_id) {
     background: #1a1a1a;
     border: 1px solid #2e2e2e;
     border-radius: 10px;
-    width: 90%;
-    max-width: 900px;
+    width: 100%;
+    max-width: 700px;
     max-height: 90vh;
-    overflow-y: auto;
+    overflow-y: none;
 }
 
 .modal-header {
@@ -368,7 +368,7 @@ if (!$account_id) {
 
 .lead-details-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 50% 50%;
     gap: 1.5rem;
     margin-bottom: 2rem;
 }
@@ -415,7 +415,7 @@ if (!$account_id) {
     color: #44da67;
 }
 
-/* Recording Player Styles */
+/* Recording Player Styles - Simplified */
 .recording-player {
     background: #161616;
     border-radius: 8px;
@@ -446,64 +446,43 @@ if (!$account_id) {
     font-size: 0.875rem;
 }
 
-.audio-controls {
+.simple-audio-controls {
     display: flex;
-    align-items: center;
-    gap: 1rem;
-    margin-bottom: 1rem;
+    justify-content: center;
 }
 
-.play-button {
+.simple-play-button {
     background: #44da67;
     border: none;
     color: #000;
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
+    padding: 12px 24px;
+    border-radius: 8px;
     display: flex;
     align-items: center;
-    justify-content: center;
+    gap: 10px;
     cursor: pointer;
+    font-size: 1rem;
+    font-weight: 600;
     transition: all 0.2s;
 }
 
-.play-button:hover {
+.simple-play-button:hover {
     background: #3bc55a;
-    transform: scale(1.05);
+    transform: translateY(-1px);
 }
 
-.play-button svg {
-    width: 24px;
-    height: 24px;
-    margin-left: 3px;
+.simple-play-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
 }
 
-.play-button.playing svg {
-    margin-left: 0;
+.simple-play-button.playing {
+    background: #ef4444;
 }
 
-.audio-progress {
-    flex: 1;
-    background: #2e2e2e;
-    height: 6px;
-    border-radius: 3px;
-    position: relative;
-    cursor: pointer;
-}
-
-.audio-progress-bar {
-    background: #44da67;
-    height: 100%;
-    border-radius: 3px;
-    width: 0;
-    transition: width 0.1s;
-}
-
-.audio-time {
-    color: #999;
-    font-size: 0.875rem;
-    min-width: 90px;
-    text-align: right;
+.simple-play-button.playing:hover {
+    background: #dc2626;
 }
 
 audio {
@@ -525,6 +504,46 @@ audio {
 .content-text {
     color: #e5e5e5;
     line-height: 1.6;
+}
+
+/* Form Data Styles */
+.form-data-container {
+    background: #000;
+    padding: 1rem;
+    border-radius: 6px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.form-field-row {
+    display: flex;
+    margin-bottom: 0.75rem;
+    align-items: flex-start;
+    border-bottom: 1px solid #2e2e2e;
+    padding-bottom: 0.75rem;
+}
+
+.form-field-row:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.form-field-label {
+    font-weight: 600;
+    color: #44da67;
+    min-width: 150px;
+    flex-shrink: 0;
+    margin-right: 1rem;
+    font-size: 0.9rem;
+}
+
+.form-field-value {
+    color: #e5e5e5;
+    flex: 1;
+    word-break: break-word;
+    font-size: 0.9rem;
+    line-height: 1.4;
 }
 
 /* Light theme adjustments */
@@ -740,13 +759,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
                 updatePagination();
             } else {
-                tableBody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem;">No leads found</td></tr>';
+                tableBody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 2rem;">No leads found</td></tr>';
             }
         })
         .catch(error => {
             console.error('Error loading leads:', error);
             loadingDiv.style.display = 'none';
-            tableBody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem; color: #ef4444;">Error loading leads</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 2rem; color: #ef4444;">Error loading leads</td></tr>';
         });
     }
 
@@ -835,7 +854,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>';
         } else if (typeLower.includes('form') || typeLower.includes('web')) {
             return '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>';
-        } else if (typeLower.includes('chat')) {
+        } else if (typeLower.includes('chat') || typeLower.includes('text') || typeLower.includes('sms')) {
             return '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>';
         } else {
             return '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>';
@@ -889,11 +908,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (result.success && result.data) {
                 content.innerHTML = renderLeadDetails(result.data);
-                
-                // Initialize audio player if there's a recording
-                if (result.data.recording_url) {
-                    initializeAudioPlayer();
-                }
+                // No need for audio player initialization - using direct links now
             } else {
                 content.innerHTML = '<p style="color: #ef4444; text-align: center;">Error loading lead details: ' + (result.data || 'Unknown error') + '</p>';
             }
@@ -904,54 +919,84 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Initialize custom audio player
+    // Simple audio player initialization
     function initializeAudioPlayer() {
         const audio = document.getElementById('lead-audio');
-        const playBtn = document.getElementById('play-btn');
-        const progressBar = document.getElementById('progress-bar');
-        const progressContainer = document.getElementById('progress-container');
-        const currentTimeEl = document.getElementById('current-time');
-        const durationEl = document.getElementById('duration');
+        const playBtn = document.getElementById('simple-play-btn');
         
         if (!audio || !playBtn) return;
         
-        // Update duration when metadata loads
-        audio.addEventListener('loadedmetadata', function() {
-            durationEl.textContent = formatTime(audio.duration);
-        });
+        console.log('Initializing simple audio player with URL:', audio.src);
         
         // Play/pause functionality
         playBtn.addEventListener('click', function() {
             if (audio.paused) {
-                audio.play();
-                playBtn.classList.add('playing');
-                playBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>';
+                console.log('Playing audio...');
+                playBtn.disabled = true;
+                playBtn.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="10 8 16 12 10 16"></polyline>
+                    </svg>
+                    <span>Loading...</span>
+                `;
+                
+                audio.play().then(() => {
+                    playBtn.disabled = false;
+                    playBtn.classList.add('playing');
+                    playBtn.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="6" y="4" width="4" height="16"></rect>
+                            <rect x="14" y="4" width="4" height="16"></rect>
+                        </svg>
+                        <span>Stop</span>
+                    `;
+                }).catch((error) => {
+                    console.error('Error playing audio:', error);
+                    playBtn.disabled = false;
+                    playBtn.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                        </svg>
+                        <span>Play Recording</span>
+                    `;
+                    alert('Error playing recording. Please try again.');
+                });
             } else {
                 audio.pause();
+                audio.currentTime = 0; // Reset to beginning
                 playBtn.classList.remove('playing');
-                playBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>';
+                playBtn.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                    <span>Play Recording</span>
+                `;
             }
         });
         
-        // Update progress bar
-        audio.addEventListener('timeupdate', function() {
-            const progress = (audio.currentTime / audio.duration) * 100;
-            progressBar.style.width = progress + '%';
-            currentTimeEl.textContent = formatTime(audio.currentTime);
-        });
-        
-        // Seek functionality
-        progressContainer.addEventListener('click', function(e) {
-            const rect = progressContainer.getBoundingClientRect();
-            const percent = (e.clientX - rect.left) / rect.width;
-            audio.currentTime = percent * audio.duration;
-        });
-        
-        // Reset when ended
+        // Reset when audio ends
         audio.addEventListener('ended', function() {
             playBtn.classList.remove('playing');
-            playBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>';
-            progressBar.style.width = '0%';
+            playBtn.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+                <span>Play Recording</span>
+            `;
+        });
+        
+        // Handle audio errors
+        audio.addEventListener('error', function() {
+            console.error('Audio error occurred');
+            playBtn.disabled = false;
+            playBtn.classList.remove('playing');
+            playBtn.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+                <span>Play Recording</span>
+            `;
         });
     }
     
@@ -963,51 +1008,63 @@ document.addEventListener('DOMContentLoaded', function() {
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     }
 
-    // Render lead details
+    // Enhanced renderLeadDetails function with conditional sections
     function renderLeadDetails(lead) {
         console.log('Rendering lead details:', lead);
         
         // Format date if available
         let formattedDate = 'N/A';
-        if (lead.date_created && lead.date_created !== 'N/A') {
+        if (lead.date_created && lead.date_created !== 'N/A' && lead.date_created !== 'Unknown date') {
             const date = new Date(lead.date_created);
             formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
         }
         
         // Format landing page URL as clickable link
         let landingPageDisplay = lead.landing_page || 'N/A';
-        if (lead.landing_page && lead.landing_page !== 'N/A' && lead.landing_page.startsWith('http')) {
+        if (lead.landing_page && lead.landing_page !== 'N/A' && lead.landing_page !== 'No landing page' && lead.landing_page.startsWith('http')) {
             landingPageDisplay = `<a href="${lead.landing_page}" target="_blank" rel="noopener noreferrer">${lead.landing_page}</a>`;
         }
         
         // Format location
         let location = [];
-        if (lead.city && lead.city !== 'N/A') location.push(lead.city);
-        if (lead.state && lead.state !== 'N/A') location.push(lead.state);
-        if (lead.country && lead.country !== 'N/A') location.push(lead.country);
+        if (lead.city && lead.city !== 'N/A' && lead.city !== 'Unknown city') location.push(lead.city);
+        if (lead.state && lead.state !== 'N/A' && lead.state !== 'Unknown state') location.push(lead.state);
+        if (lead.country && lead.country !== 'N/A' && lead.country !== 'Unknown country') location.push(lead.country);
         const locationDisplay = location.length > 0 ? location.join(', ') : 'N/A';
+        
+        // Determine lead type for conditional sections
+        const leadType = (lead.lead_type || '').toLowerCase();
+        const isPhoneCall = leadType.includes('phone') || leadType.includes('call') || leadType.includes('voice') || leadType.includes('telephone');
+        const isTextMessage = leadType.includes('text') || leadType.includes('sms') || leadType.includes('message');
+        const isWebForm = leadType.includes('form') || leadType.includes('web') || leadType.includes('contact') || leadType.includes('submission');
+        
+        console.log('Lead type detection:', {
+            leadType: lead.lead_type,
+            isPhoneCall,
+            isTextMessage, 
+            isWebForm,
+            hasRecording: !!lead.recording_url,
+            hasMessage: !!(lead.message && lead.message !== 'No message' && lead.message !== 'N/A'),
+            hasFormData: !!lead.form_data
+        });
         
         let html = `
             <div class="lead-details-grid">
                 <div class="lead-detail-item">
                     <label>Name</label>
-                    <div class="value">${lead.contactDisplay || 'N/A'}</div>
+                    <div class="value">${lead.contactDisplay && lead.contactDisplay !== 'No contact information' ? lead.contactDisplay : 'N/A'}</div>
                 </div>
                 <div class="lead-detail-item">
                     <label>Email</label>
-                    <div class="value">${lead.email || 'N/A'}</div>
-                </div>
-                <div class="lead-detail-item">
-                    <label>Phone</label>
-                    <div class="value">${lead.phone_number || 'N/A'}</div>
+                    <div class="value">${lead.email && lead.email !== 'No email available' ? lead.email : 'N/A'}</div>
                 </div>
                 <div class="lead-detail-item">
                     <label>Lead Type</label>
-                    <div class="value">${lead.lead_type || 'N/A'}</div>
+                    <div class="value">${lead.lead_type && lead.lead_type !== 'Unknown type' ? lead.lead_type : 'N/A'}</div>
                 </div>
                 <div class="lead-detail-item">
                     <label>Campaign</label>
-                    <div class="value">${lead.campaign || 'N/A'}</div>
+                    <div class="value">${lead.campaign && lead.campaign !== 'No campaign' ? lead.campaign : 'N/A'}</div>
                 </div>
                 <div class="lead-detail-item">
                     <label>Landing Page</label>
@@ -1019,7 +1076,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
                 <div class="lead-detail-item">
                     <label>IP Address</label>
-                    <div class="value">${lead.ip_address || 'N/A'}</div>
+                    <div class="value">${lead.ip_address && lead.ip_address !== 'No IP address' ? lead.ip_address : 'N/A'}</div>
                 </div>
                 <div class="lead-detail-item">
                     <label>Date Created</label>
@@ -1028,8 +1085,13 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
         `;
         
-        // Add call recording if available
-        if (lead.recording_url) {
+        // CONDITIONAL SECTIONS BASED ON LEAD TYPE
+        
+        // 1. Phone Call Recording Section - ONLY for phone calls
+        if (isPhoneCall && lead.recording_url) {
+            console.log('Adding recording section for phone call');
+            console.log('Recording URL being used:', lead.recording_url);
+            
             html += `
                 <div class="lead-section">
                     <h4>Call Recording</h4>
@@ -1043,32 +1105,111 @@ document.addEventListener('DOMContentLoaded', function() {
                             </div>
                             <div class="recording-duration">Duration: ${formatDuration(lead.recording_duration)}</div>
                         </div>
-                        <div class="audio-controls">
-                            <button class="play-button" id="play-btn">
+                        <div class="simple-audio-controls">
+                            <a href="${lead.recording_url}" target="_blank" class="simple-play-button" style="text-decoration: none; display: flex; align-items: center; gap: 10px;">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <polygon points="5 3 19 12 5 21 5 3"></polygon>
                                 </svg>
-                            </button>
-                            <div class="audio-progress" id="progress-container">
-                                <div class="audio-progress-bar" id="progress-bar"></div>
-                            </div>
-                            <div class="audio-time">
-                                <span id="current-time">0:00</span> / <span id="duration">${formatDuration(lead.recording_duration)}</span>
-                            </div>
+                                <span>Play Recording</span>
+                            </a>
+                            <a href="${lead.recording_url.replace('/play', '/download')}" target="_blank" class="simple-play-button" style="text-decoration: none; display: flex; align-items: center; gap: 10px; margin-left: 10px; background: #666;">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                    <polyline points="7 10 12 15 17 10"></polyline>
+                                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                                </svg>
+                                <span>Download</span>
+                            </a>
                         </div>
-                        <audio id="lead-audio" preload="metadata">
-                            <source src="${lead.recording_url}" type="audio/mpeg">
-                            <source src="${lead.recording_url}" type="audio/wav">
-                            <source src="${lead.recording_url}" type="audio/ogg">
-                            Your browser does not support the audio element.
-                        </audio>
+                    </div>
+                </div>
+            `;
+        } else if (isPhoneCall && !lead.recording_url) {
+            // Show message for phone calls without recording
+            html += `
+                <div class="lead-section">
+                    <h4>Call Recording</h4>
+                    <div class="content-text" style="color: #999; font-style: italic;">
+                        No recording available for this phone call.
                     </div>
                 </div>
             `;
         }
         
-        // Add transcript if available
-        if (lead.message) {
+        // 2. Call Transcript Section - for phone calls with transcript
+        if (isPhoneCall && lead.transcript && lead.transcript !== 'No transcript available') {
+            console.log('Adding transcript section for phone call');
+            html += `
+                <div class="lead-section">
+                    <h4>Call Transcript</h4>
+                    <div class="transcript-box">
+                        ${lead.transcript}
+                    </div>
+                </div>
+            `;
+        }
+        
+        // 3. Text Message Section - ONLY for text messages
+        if (isTextMessage && lead.message && lead.message !== 'No message' && lead.message !== 'N/A') {
+            console.log('Adding message section for text message');
+            html += `
+                <div class="lead-section">
+                    <h4>Text Message</h4>
+                    <div class="transcript-box">
+                        ${lead.message}
+                    </div>
+                </div>
+            `;
+        }
+        
+        // 4. Web Form Data Section - ONLY for web forms
+        if (isWebForm && lead.form_data) {
+            console.log('Adding form data section for web form');
+            
+            // Format form data as key-value pairs
+            let formDataHtml = '';
+            try {
+                const formData = typeof lead.form_data === 'string' ? JSON.parse(lead.form_data) : lead.form_data;
+                
+                Object.entries(formData).forEach(([key, value]) => {
+                    // Clean up the key by removing "(Required)" and other common suffixes
+                    let cleanKey = key.replace(/\(Required\)/g, '').trim();
+                    
+                    formDataHtml += `
+                        <div class="form-field-row">
+                            <div class="form-field-label">${cleanKey}:</div>
+                            <div class="form-field-value">${value || 'N/A'}</div>
+                        </div>
+                    `;
+                });
+            } catch (e) {
+                // Fallback to raw display if parsing fails
+                formDataHtml = `<pre style="color: #e5e5e5; background: #000; padding: 1rem; border-radius: 6px; overflow-x: auto; white-space: pre-wrap;">${JSON.stringify(lead.form_data, null, 2)}</pre>`;
+            }
+            
+            html += `
+                <div class="lead-section">
+                    <h4>Additional Information</h4>
+                    <div class="form-data-container">
+                        ${formDataHtml}
+                    </div>
+                </div>
+            `;
+        } else if (isWebForm && !lead.form_data) {
+            // Show message for web forms without additional data
+            html += `
+                <div class="lead-section">
+                    <h4>Additional Information</h4>
+                    <div class="content-text" style="color: #999; font-style: italic;">
+                        No additional form data available.
+                    </div>
+                </div>
+            `;
+        }
+        
+        // 5. General Message Section - for non-text message types that have messages
+        if (!isTextMessage && lead.message && lead.message !== 'No message' && lead.message !== 'N/A') {
+            console.log('Adding general message section');
             html += `
                 <div class="lead-section">
                     <h4>Message</h4>
@@ -1079,27 +1220,17 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
         }
         
-        // Add lead summary
-        html += `
-            <div class="lead-section">
-                <h4>Lead Summary</h4>
-                <div class="content-text">
-                    ${lead.lead_summary || 'No summary available'}
-                </div>
-            </div>
-        `;
-        
-        // Add additional fields if available
-        if (lead.form_data) {
-            html += `
-                <div class="lead-section">
-                    <h4>Additional Information</h4>
-                    <pre style="color: #e5e5e5; background: #000; padding: 1rem; border-radius: 6px; overflow-x: auto; white-space: pre-wrap;">
-${JSON.stringify(lead.form_data, null, 2)}
-                    </pre>
-                </div>
-            `;
-        }
+        // 6. Lead Summary - Always show if available
+        // if (lead.lead_summary && lead.lead_summary !== 'No summary available') {
+        //     html += `
+        //         <div class="lead-section">
+        //             <h4>Lead Summary</h4>
+        //             <div class="content-text">
+        //                 ${lead.lead_summary}
+        //             </div>
+        //         </div>
+        //     `;
+        // }
         
         return html;
     }

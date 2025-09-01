@@ -2,10 +2,10 @@
 
 // Define encryption key (store securely in wp-config.php or environment variable)
 // Example 32-character key (replace with your own secure key in wp-config.php)
-$encryption_key = defined('CLICKUP_ENCRYPTION_KEY') ? CLICKUP_ENCRYPTION_KEY : 'X7k9pLmQwXyZaBvNxRk4tPq7s8vY2mHo3'; // Exactly 32 chars
-if (strlen($encryption_key) > 32) {
-    wp_die('Encryption key must be exactly 32 characters long. Please update CLICKUP_ENCRYPTION_KEY in wp-config.php.');
-}
+// $encryption_key = defined('CLICKUP_ENCRYPTION_KEY') ? CLICKUP_ENCRYPTION_KEY : 'X7k9pLmQwXyZaBvNxRk4tPq7s8vY2mHo3'; // Exactly 32 chars
+// if (strlen($encryption_key) > 32) {
+//     wp_die('Encryption key must be exactly 32 characters long. Please update CLICKUP_ENCRYPTION_KEY in wp-config.php.');
+// }
 
 // Encryption/Decryption functions
 function encrypt_value($value, $key) {
