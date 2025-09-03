@@ -1,32 +1,72 @@
 <?php
+// Exit if accessed directly
+if (!defined('ABSPATH')) exit;
 
-// Shortcode to display ClickUp Client Portal Tabs
+/**
+ * Shortcode: [client_dashboard]
+ * Renders the ClickUp Client Portal tabs with robust guards for PHP 8.2+.
+ */
 function render_clickup_client_dashboard() {
-    $user_id = get_current_user_id();
-    $doc_id = get_field('client_portal', 'user_' . $user_id);
-    $workspace_id = get_option('clickup_workspace_id');
-    $api_key = get_option('clickup_api_key');
 
+    // --- Helpers (ACF-aware) -------------------------------------------------
+    $get_user_field = function($key, $user_id) {
+        // Prefer ACF if available
+        if (function_exists('get_field')) {
+            $v = get_field($key, 'user_' . $user_id);
+            if ($v !== null && $v !== '') return $v;
+        }
+        // Fallback to user meta
+        $v = get_user_meta($user_id, $key, true);
+        return $v ?: '';
+    };
+
+    $safe_array = function($maybe) {
+        return is_array($maybe) ? $maybe : [];
+    };
+
+    // --- Current user & stored config ----------------------------------------
+    $user_id      = get_current_user_id();
+    $doc_id       = $get_user_field('client_portal', $user_id); // ACF (user_{$id})
+    $workspace_id = get_option('clickup_workspace_id');
+    $api_key      = get_option('clickup_api_key');
+
+    // Early exit if required config missing
     if (!$doc_id || !$workspace_id || !$api_key) {
         return '<p>Click Here to login</p>';
     }
 
-    $response = wp_remote_get("https://api.clickup.com/api/v3/workspaces/{$workspace_id}/docs/{$doc_id}/pages", [
-        'headers' => ['Authorization' => $api_key],
+    // --- ClickUp API: Fetch pages under Client Portal doc --------------------
+    $endpoint = "https://api.clickup.com/api/v3/workspaces/{$workspace_id}/docs/{$doc_id}/pages";
+    $response = wp_remote_get($endpoint, [
+        'headers' => [
+            'Authorization' => $api_key,
+        ],
+        'timeout' => 20,
     ]);
 
     if (is_wp_error($response)) {
         return '<p>Error fetching ClickUp pages.</p>';
     }
 
-    $pages = json_decode(wp_remote_retrieve_body($response), true);
+    $body  = wp_remote_retrieve_body($response);
+    $pages = json_decode($body, true);
+
+    // Normalize shape: API sometimes returns { "pages": [...] }
+    if (is_array($pages) && isset($pages['pages']) && is_array($pages['pages'])) {
+        $pages = $pages['pages'];
+    }
+    if (!is_array($pages)) {
+        $pages = [];
+    }
     if (empty($pages)) {
         return '<p>No pages found under this Client Portal.</p>';
     }
 
-    // Check if Lead tab should be shown
-    $show_lead_tab = get_field('lead_whatsconver', 'user_' . $user_id);
+    // --- ACF setting to show Lead tab ----------------------------------------
+    // (Keep your original key; guard it if ACF not present)
+    $show_lead_tab = $get_user_field('lead_whatsconver', $user_id); // truthy enables tab
 
+    // --- Allowed tabs & ordering ---------------------------------------------
     $allowed_titles = [
         'Welcome',
         'Meeting Notes',
@@ -36,17 +76,18 @@ function render_clickup_client_dashboard() {
         'Campaign Strategy',
         'Billing & Payments',
         'Brand Assets & Info',
-        'Support Form'
+        'Support Form',
     ];
 
-    // Insert Lead tab after Analytics Dashboard if enabled
-    if ($show_lead_tab) {
-        $analytics_index = array_search('Analytics Dashboard', $allowed_titles);
+    // Insert "Lead" right after "Analytics Dashboard" if enabled
+    if (!empty($show_lead_tab)) {
+        $analytics_index = array_search('Analytics Dashboard', $allowed_titles, true);
         if ($analytics_index !== false) {
             array_splice($allowed_titles, $analytics_index + 1, 0, 'Lead');
         }
     }
 
+    // Map tab → template file
     $template_map = [
         'Welcome'               => 'welcome.php',
         'Meeting Notes'         => 'meeting-notes.php',
@@ -57,59 +98,81 @@ function render_clickup_client_dashboard() {
         'Campaign Strategy'     => 'campaign-strategy.php',
         'Billing & Payments'    => 'bill.php',
         'Brand Assets & Info'   => 'brand.php',
-        'Support Form'          => 'iframe-support.php'
+        'Support Form'          => 'iframe-support.php',
     ];
 
+    // Map tab → SVG icon file name (from assets/svg/)
     $icons = [
-        'Welcome' => 'home.svg',
-        'Meeting Notes' => 'notes.svg',
-        'Task List' => 'task.svg',
-        'Performance Summary' => 'chart.svg',
-        'Analytics Dashboard' => 'analytics.svg',
-        'Lead' => 'lead.svg',
-        'Campaign Strategy' => 'target.svg',
-        'Billing & Payments' => 'card.svg',
-        'Brand Assets & Info' => 'brand.svg',
-        'Support Form' => 'support.svg'
+        'Welcome'               => 'home.svg',
+        'Meeting Notes'         => 'notes.svg',
+        'Task List'             => 'task.svg',
+        'Performance Summary'   => 'chart.svg',
+        'Analytics Dashboard'   => 'analytics.svg',
+        'Lead'                  => 'lead.svg',
+        'Campaign Strategy'     => 'target.svg',
+        'Billing & Payments'    => 'card.svg',
+        'Brand Assets & Info'   => 'brand.svg',
+        'Support Form'          => 'support.svg',
     ];
 
-    $filtered_pages = array_filter($pages, function ($page) use ($allowed_titles) {
-        return in_array($page['name'], $allowed_titles);
-    });
+    // --- Filter/Order the API pages against allowed titles -------------------
+    $filtered_pages = array_values(array_filter($pages, function ($page) use ($allowed_titles) {
+        return is_array($page)
+            && isset($page['name'])
+            && in_array($page['name'], $allowed_titles, true);
+    }));
 
     usort($filtered_pages, function ($a, $b) use ($allowed_titles) {
-        return array_search($a['name'], $allowed_titles) - array_search($b['name'], $allowed_titles);
+        $a_idx = isset($a['name']) ? array_search($a['name'], $allowed_titles, true) : PHP_INT_MAX;
+        $b_idx = isset($b['name']) ? array_search($b['name'], $allowed_titles, true) : PHP_INT_MAX;
+        $a_idx = ($a_idx === false) ? PHP_INT_MAX : $a_idx;
+        $b_idx = ($b_idx === false) ? PHP_INT_MAX : $b_idx;
+        return $a_idx <=> $b_idx;
     });
 
-    // Add manual tabs if not in API
-    $api_titles = wp_list_pluck($filtered_pages, 'name');
+    // Add manual tabs if not in API (except Support Form which has a specific template)
+    $api_titles = is_array($filtered_pages) ? wp_list_pluck($filtered_pages, 'name') : [];
     foreach ($allowed_titles as $title) {
-        if (!in_array($title, $api_titles) && $title !== 'Support Form') {
-            $filtered_pages[] = ['name' => $title, 'content' => ''];
+        if (!in_array($title, $api_titles, true) && $title !== 'Support Form') {
+            $filtered_pages[] = [
+                'name'    => $title,
+                'content' => '',
+            ];
         }
     }
 
-    $acf_tabs = get_field('add_custom_data', 'user_' . $user_id) ?: [];
+    // --- Extra ACF tabs after Support Form -----------------------------------
+    // ACF repeater: add_custom_data (tab_name, details)
+    $acf_tabs = $safe_array($get_user_field('add_custom_data', $user_id));
 
-    require_once plugin_dir_path(__DIR__) . 'includes/parsedown.php';
-    $Parsedown = new Parsedown();
+    // --- Parsedown (optional) -------------------------------------------------
+    $Parsedown = null;
+    $parsedown_path = plugin_dir_path(__DIR__) . 'includes/parsedown.php';
+    if (!class_exists('Parsedown') && file_exists($parsedown_path)) {
+        require_once $parsedown_path;
+    }
+    if (class_exists('Parsedown')) {
+        $Parsedown = new Parsedown();
+    }
 
-    // User profile data using ACF fields
-    $user = get_userdata($user_id);
-    $first_name = get_field('first_name', 'user_' . $user_id) ?: $user->first_name;
-    $last_name = get_field('last_name', 'user_' . $user_id) ?: $user->last_name;
-    $user_name = trim($first_name . ' ' . $last_name);
-    $profile_image = get_field('profile_image', 'user_' . $user_id);
-    $company_name = get_field('company_name', 'user_' . $user_id);
-    $initial = $profile_image ? '' : (substr($first_name, 0, 1) . substr($last_name, 0, 1));
+    // --- User profile data ----------------------------------------------------
+    $user          = get_userdata($user_id);
+    $first_name    = $get_user_field('first_name', $user_id) ?: ($user ? $user->first_name : '');
+    $last_name     = $get_user_field('last_name',  $user_id) ?: ($user ? $user->last_name  : '');
+    $user_name     = trim($first_name . ' ' . $last_name);
+    $profile_image = $get_user_field('profile_image', $user_id); // ACF image array expected
+    $company_name  = $get_user_field('company_name',  $user_id);
+    $initial       = (!$profile_image ? (mb_substr($first_name, 0, 1) . mb_substr($last_name, 0, 1)) : '');
 
-    // Create URL-safe slugs for tabs
+    // --- Slugs (not strictly needed but kept) --------------------------------
     $tab_slugs = [];
     foreach ($allowed_titles as $title) {
         $tab_slugs[] = sanitize_title($title);
     }
     foreach ($acf_tabs as $acf) {
-        $tab_slugs[] = sanitize_title($acf['tab_name']);
+        if (is_array($acf) && !empty($acf['tab_name'])) {
+            $tab_slugs[] = sanitize_title($acf['tab_name']);
+        }
     }
 
     ob_start();
@@ -118,46 +181,28 @@ function render_clickup_client_dashboard() {
         <p>Use a larger screen to view the portal.<br>Stay tuned for our mobile application 🚀</p>
     </div>
     <style>
-        .clickup-dashboard {
-            display: block;
-        }
-
-        .mobile-warning {
-            display: none;
-            background: #111;
-            color: #fff;
-            padding: 2rem;
-            text-align: center;
-            font-size: 1.2rem;
-            line-height: 1.6;
-        }
-
+        .clickup-dashboard { display: block; }
+        .mobile-warning { display: none; background: #111; color: #fff; padding: 2rem; text-align: center; font-size: 1.2rem; line-height: 1.6; }
         @media (max-width: 800px) {
-            .clickup-dashboard {
-                display: none !important;
-            }
-
-            .mobile-warning {
-                display: block;
-            }
+            .clickup-dashboard { display: none !important; }
+            .mobile-warning { display: block; }
         }
-
-        .dropdown-item span {
-            margin-top: 3px;
-        }
+        .dropdown-item span { margin-top: 3px; }
     </style>
-    
+
     <div class="clickup-dashboard">
         <div class="clickup-sidebar">
             <div class="wg-branding flex" style="justify-content: space-between;">
                 <div class="flex" style="gap:4px">
-                    <div><img src="https://green-salmon-841673.hostingersite.com/wp-content/uploads/2025/07/webgrowth.png"></div>
+                    <div>
+                        <img src="<?php echo esc_url('https://green-salmon-841673.hostingersite.com/wp-content/uploads/2025/07/webgrowth.png'); ?>" alt="Webgrowth">
+                    </div>
                     <div class="flex" style="flex-direction: column;">
                         <span class="common-color" style="font-size: 1.25rem;line-height: 1.8rem;font-weight: 700;letter-spacing: -.025em;">Webgrowth</span>
                         <span class="common-color" style="font-weight: 500;font-size: .8rem;line-height: 1rem;letter-spacing: -.025em;">Client Portal</span>
                     </div>
                 </div>
-                
+
                 <button type="button" id="theme-toggle" aria-label="Toggle Theme" class="theme-toggle-button" style="max-width: 39px; padding: 0px 8px;">
                     <svg class="sun-icon h-4 w-4 rotate-0 scale-100 transition-all dark-mode-hidden" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="4"></circle>
@@ -168,35 +213,43 @@ function render_clickup_client_dashboard() {
                     </svg>
                 </button>
             </div>
-            
+
             <ul>
                 <?php
                 $tab_index = 0;
                 foreach ($allowed_titles as $title) {
-                    $icon = $icons[$title] ?? '';
-                    $svg_path = plugin_dir_path(__DIR__) . 'assets/svg/' . $icon;
-                    $svg_content = file_exists($svg_path) ? file_get_contents($svg_path) : '';
+                    $icon      = $icons[$title] ?? '';
+                    $svg_path  = plugin_dir_path(__DIR__) . 'assets/svg/' . $icon;
+                    $svg_content = (is_string($icon) && $icon && file_exists($svg_path)) ? file_get_contents($svg_path) : '';
+
                     $tab_slug = sanitize_title($title);
                     echo "<li data-tab='clickup-tab-{$tab_index}' data-slug='{$tab_slug}'><span class='icon'>{$svg_content}</span> <span class='text-icon'>" . esc_html($title) . "</span></li>";
                     $tab_index++;
 
-                    if ($title === 'Support Form' && $acf_tabs) {
+                    // Inject ACF tabs right after Support Form
+                    if ($title === 'Support Form' && !empty($acf_tabs)) {
                         foreach ($acf_tabs as $acf) {
+                            if (!is_array($acf) || empty($acf['tab_name'])) continue;
                             $acf_slug = sanitize_title($acf['tab_name']);
-                            echo "<li data-tab='clickup-tab-{$tab_index}' data-slug='{$acf_slug}'><span class='icon-acf'><svg width='24' height='24' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 640'><path d='M259.1 73.5C262.1 58.7 275.2 48 290.4 48L350.2 48C365.4 48 378.5 58.7 381.5 73.5L396 143.5C410.1 149.5 423.3 157.2 435.3 166.3L503.1 143.8C517.5 139 533.3 145 540.9 158.2L570.8 210C578.4 223.2 575.7 239.8 564.3 249.9L511 297.3C511.9 304.7 512.3 312.3 512.3 320C512.3 327.7 511.8 335.3 511 342.7L564.4 390.2C575.8 400.3 578.4 417 570.9 430.1L541 481.9C533.4 495 517.6 501.1 503.2 496.3L435.4 473.8C423.3 482.9 410.1 490.5 396.1 496.6L381.7 566.5C378.6 581.4 365.5 592 350.4 592L290.6 592C275.4 592 262.3 581.3 259.3 566.5L244.9 496.6C230.8 490.6 217.7 482.9 205.6 473.8L137.5 496.3C123.1 501.1 107.3 495.1 99.7 481.9L69.8 430.1C62.2 416.9 64.9 400.3 76.3 390.2L129.7 342.7C128.8 335.3 128.4 327.7 128.4 320C128.4 312.3 128.9 304.7 129.7 297.3L76.3 249.8C64.9 239.7 62.3 223 69.8 209.9L99.7 158.1C107.3 144.9 123.1 138.9 137.5 143.7L205.3 166.2C217.4 157.1 230.6 149.5 244.6 143.4L259.1 73.5zM320.3 400C364.5 399.8 400.2 363.9 400 319.7C399.8 275.5 363.9 239.8 319.7 240C275.5 240.2 239.8 276.1 240 320.3C240.2 364.5 276.1 400.2 320.3 400z'/></svg></span> <span class='acf-title'>" . esc_html($acf['tab_name']) . "</span></li>";
+                            echo "<li data-tab='clickup-tab-{$tab_index}' data-slug='{$acf_slug}'>
+                                    <span class='icon-acf'>
+                                        <svg width='24' height='24' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 640'><path d='M259.1 73.5C262.1 58.7 275.2 48 290.4 48L350.2 48C365.4 48 378.5 58.7 381.5 73.5L396 143.5C410.1 149.5 423.3 157.2 435.3 166.3L503.1 143.8C517.5 139 533.3 145 540.9 158.2L570.8 210C578.4 223.2 575.7 239.8 564.3 249.9L511 297.3C511.9 304.7 512.3 312.3 512.3 320C512.3 327.7 511.8 335.3 511 342.7L564.4 390.2C575.8 400.3 578.4 417 570.9 430.1L541 481.9C533.4 495 517.6 501.1 503.2 496.3L435.4 473.8C423.3 482.9 410.1 490.5 396.1 496.6L381.7 566.5C378.6 581.4 365.5 592 350.4 592L290.6 592C275.4 592 262.3 581.3 259.3 566.5L244.9 496.6C230.8 490.6 217.7 482.9 205.6 473.8L137.5 496.3C123.1 501.1 107.3 495.1 99.7 481.9L69.8 430.1C62.2 416.9 64.9 400.3 76.3 390.2L129.7 342.7C128.8 335.3 128.4 327.7 128.4 320C128.4 312.3 128.9 304.7 129.7 297.3L76.3 249.8C64.9 239.7 62.3 223 69.8 209.9L99.7 158.1C107.3 144.9 123.1 138.9 137.5 143.7L205.3 166.2C217.4 157.1 230.6 149.5 244.6 143.4L259.1 73.5zM320.3 400C364.5 399.8 400.2 363.9 400 319.7C399.8 275.5 363.9 239.8 319.7 240C275.5 240.2 239.8 276.1 240 320.3C240.2 364.5 276.1 400.2 320.3 400z'/></svg>
+                                    </span>
+                                    <span class='acf-title'>" . esc_html($acf['tab_name']) . "</span>
+                                  </li>";
                             $tab_index++;
                         }
                     }
                 }
                 ?>
             </ul>
-            
-            <!-- User Profile Section at Bottom -->
+
+            <!-- User Profile Section -->
             <div class="flex user-profile-section" style="position: absolute; bottom: 0rem; width: calc(100% - 3rem);">
                 <div class="flex user-profile" style="align-items: center; padding: .75rem 1rem; cursor: pointer; width: 100%;">
-                    <div class="profile-circle flex" style="color:#000000;width: 40px; height: 40px; border-radius: 50%; align-items: center; justify-content: center; font-weight: bold; margin-right: 10px; <?php echo !$profile_image ? 'background: #44da67;' : ''; ?>">
+                    <div class="profile-circle flex" style="color:#000000;width: 40px; height: 40px; border-radius: 50%; align-items: center; justify-content: center; font-weight: bold; margin-right: 10px; <?php echo empty($profile_image) ? 'background: #44da67;' : ''; ?>">
                         <?php
-                        if ($profile_image) {
+                        if (is_array($profile_image) && !empty($profile_image['url'])) {
                             echo '<img src="' . esc_url($profile_image['url']) . '" alt="' . esc_attr($user_name) . '" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">';
                         } else {
                             echo esc_html($initial);
@@ -231,22 +284,35 @@ function render_clickup_client_dashboard() {
         <div class="clickup-content-area">
             <?php
             $tab_index = 0;
+
             foreach ($allowed_titles as $title) {
                 $tab_slug = sanitize_title($title);
                 echo "<div id='clickup-tab-{$tab_index}' class='clickup-tab' data-slug='{$tab_slug}' style='display: none;'>";
 
-                $page = current(array_filter($filtered_pages, fn($p) => $p['name'] === $title));
+                // Find the matching page by name
+                $page = current(array_filter($filtered_pages, function ($p) use ($title) {
+                    return is_array($p) && isset($p['name']) && $p['name'] === $title;
+                }));
+
                 $template = $template_map[$title] ?? null;
+                $content  = is_array($page) && isset($page['content']) ? $page['content'] : '';
 
-                $content = $page['content'] ?? '';
-
+                // Extract first URL for iframe-type templates
                 if ($template === 'iframe.php' || $template === 'iframe-support.php') {
-                    preg_match('/https?:\/\/[^\s"]+/', $content, $matches);
-                    $iframe_url = $matches[0] ?? '';
+                    $iframe_url = '';
+                    if (is_string($content) && $content !== '') {
+                        if (preg_match('/https?:\/\/[^\s"]+/', $content, $m)) {
+                            $iframe_url = $m[0];
+                        }
+                    }
+                    // Make $iframe_url visible to the included template
+                    $iframe_url = esc_url($iframe_url);
                 }
 
                 $path = plugin_dir_path(__DIR__) . 'templates/' . $template;
+
                 if ($template && file_exists($path)) {
+                    // Templates can use: $content, $Parsedown, $iframe_url, etc.
                     include $path;
                 } else {
                     echo "<p>Template missing for: " . esc_html($title) . "</p>";
@@ -255,14 +321,33 @@ function render_clickup_client_dashboard() {
                 echo "</div>";
                 $tab_index++;
 
-                if ($title === 'Support Form' && $acf_tabs) {
+                // Extra ACF tabs after Support Form
+                if ($title === 'Support Form' && !empty($acf_tabs)) {
                     foreach ($acf_tabs as $acf) {
-                        $acf_slug = sanitize_title($acf['tab_name']);
+                        if (!is_array($acf) || empty($acf['tab_name'])) continue;
+
+                        $acf_slug    = sanitize_title($acf['tab_name']);
+                        $acf_name    = $acf['tab_name'];
+                        $acf_content = isset($acf['details']) ? $acf['details'] : '';
+
                         echo "<div id='clickup-tab-{$tab_index}' class='clickup-tab' data-slug='{$acf_slug}' style='display: none;'>";
-                        $acf_name = $acf['tab_name'];
-                        $acf_content = $acf['details'];
-                        include plugin_dir_path(__DIR__) . 'templates/acf.php';
+                        // The acf.php template expects $acf_name, $acf_content (and optionally $Parsedown)
+                        $acf_template = plugin_dir_path(__DIR__) . 'templates/acf.php';
+                        if (file_exists($acf_template)) {
+                            include $acf_template;
+                        } else {
+                            // Fallback render if template missing
+                            echo '<div class="acf-fallback">';
+                            echo '<h2>' . esc_html($acf_name) . '</h2>';
+                            if ($Parsedown && is_string($acf_content)) {
+                                echo $Parsedown->text($acf_content);
+                            } else {
+                                echo wp_kses_post(wpautop($acf_content));
+                            }
+                            echo '</div>';
+                        }
                         echo "</div>";
+
                         $tab_index++;
                     }
                 }
@@ -298,12 +383,10 @@ function render_clickup_client_dashboard() {
             const tabs = document.querySelectorAll('.clickup-sidebar li');
             const contents = document.querySelectorAll('.clickup-tab');
 
-            // Function to activate tab by slug
             function activateTabBySlug(slug) {
                 tabs.forEach(el => el.classList.remove('active'));
                 contents.forEach(el => el.style.display = 'none');
 
-                // Find and activate tab with matching slug
                 let tabFound = false;
                 tabs.forEach(tab => {
                     if (tab.dataset.slug === slug) {
@@ -316,14 +399,12 @@ function render_clickup_client_dashboard() {
                     }
                 });
 
-                // If no matching tab found, activate first tab
                 if (!tabFound && tabs.length && contents.length) {
                     tabs[0].classList.add('active');
                     contents[0].style.display = 'block';
                 }
             }
 
-            // Function to update URL hash
             function updateHash(slug) {
                 if (history.pushState) {
                     history.pushState(null, null, '#' + slug);
@@ -332,7 +413,6 @@ function render_clickup_client_dashboard() {
                 }
             }
 
-            // Handle initial load with hash
             const initialHash = window.location.hash.substring(1);
             if (initialHash) {
                 activateTabBySlug(initialHash);
@@ -341,11 +421,10 @@ function render_clickup_client_dashboard() {
                 contents[0].style.display = 'block';
             }
 
-            // Handle tab clicks
             tabs.forEach(function (tab) {
                 tab.addEventListener('click', function () {
                     const slug = tab.dataset.slug;
-                    
+
                     tabs.forEach(el => el.classList.remove('active'));
                     contents.forEach(el => el.style.display = 'none');
 
@@ -353,12 +432,10 @@ function render_clickup_client_dashboard() {
                     const target = document.getElementById(tab.dataset.tab);
                     if (target) target.style.display = 'block';
 
-                    // Update URL hash
                     updateHash(slug);
                 });
             });
 
-            // Handle browser back/forward buttons
             window.addEventListener('hashchange', function () {
                 const hash = window.location.hash.substring(1);
                 if (hash) {
@@ -366,49 +443,50 @@ function render_clickup_client_dashboard() {
                 }
             });
 
-            // User Profile Dropdown
-            const userProfile = document.querySelector('.user-profile');
-            const dropdownMenu = document.getElementById('dropdown-menu');
+            // User profile dropdown behavior
+            const userProfile   = document.querySelector('.user-profile');
+            const dropdownMenu  = document.getElementById('dropdown-menu');
             const dropdownArrow = document.getElementById('dropdown-arrow');
 
-            userProfile.addEventListener('click', function (e) {
-                e.preventDefault();
-                const isOpen = dropdownMenu.style.display === 'block';
-                dropdownMenu.style.display = isOpen ? 'none' : 'block';
-                dropdownArrow.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
-            });
-
-            document.addEventListener('click', function (e) {
-                if (!userProfile.contains(e.target)) {
-                    dropdownMenu.style.display = 'none';
-                    dropdownArrow.style.transform = 'rotate(0deg)';
-                }
-            });
-
-            // Handle dropdown item clicks
-            document.querySelectorAll('.dropdown-item').forEach(item => {
-                item.addEventListener('click', function (e) {
+            if (userProfile && dropdownMenu && dropdownArrow) {
+                userProfile.addEventListener('click', function (e) {
                     e.preventDefault();
-                    const action = this.getAttribute('data-action');
-
-                    switch (action) {
-                        case 'logout':
-                            window.location.href = '<?php echo wp_logout_url(); ?>';
-                            break;
-                        case 'edit-profile':
-                            window.location.href = '/account';
-                            break;
-                        case 'portal':
-                            window.location.href = '/account/orders/';
-                            break;
-                    }
-                    dropdownMenu.style.display = 'none';
-                    dropdownArrow.style.transform = 'rotate(0deg)';
+                    const isOpen = dropdownMenu.style.display === 'block';
+                    dropdownMenu.style.display = isOpen ? 'none' : 'block';
+                    dropdownArrow.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
                 });
-            });
+
+                document.addEventListener('click', function (e) {
+                    if (!userProfile.contains(e.target)) {
+                        dropdownMenu.style.display = 'none';
+                        dropdownArrow.style.transform = 'rotate(0deg)';
+                    }
+                });
+
+                document.querySelectorAll('.dropdown-item').forEach(item => {
+                    item.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        const action = this.getAttribute('data-action');
+                        switch (action) {
+                            case 'logout':
+                                window.location.href = '<?php echo esc_js(wp_logout_url()); ?>';
+                                break;
+                            case 'edit-profile':
+                                window.location.href = '/account';
+                                break;
+                            case 'portal':
+                                window.location.href = '/account/orders/';
+                                break;
+                        }
+                        dropdownMenu.style.display = 'none';
+                        dropdownArrow.style.transform = 'rotate(0deg)';
+                    });
+                });
+            }
         });
     </script>
     <?php
     return ob_get_clean();
 }
+
 add_shortcode('client_dashboard', 'render_clickup_client_dashboard');

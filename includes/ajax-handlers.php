@@ -189,7 +189,7 @@ function fetch_whatconverts_leads() {
     ]);
 }
 
-// AJAX handler to fetch lead details - ENHANCED VERSION WITH CONDITIONAL SECTIONS
+// AJAX handler to fetch lead details - ENHANCED VERSION WITH FIXED RECORDING ENDPOINT
 add_action('wp_ajax_fetch_lead_details', 'fetch_lead_details');
 add_action('wp_ajax_nopriv_fetch_lead_details', 'fetch_lead_details');
 
@@ -222,9 +222,8 @@ function fetch_lead_details() {
     
     // Try different URL variations for the WhatConverts API
     $urls_to_try = [
-        "https://app.whatconverts.com/api/v1/leads/$lead_id?account_id=$account_id",
-        "https://app.whatconverts.com/api/v1/leads/$lead_id",
-        "https://app.whatconverts.com/api/v1/accounts/$account_id/leads/$lead_id"
+
+        "https://app.whatconverts.com/api/v1/leads/$lead_id"
     ];
     
     $lead_data = null;
@@ -385,7 +384,7 @@ function fetch_lead_details() {
         'transcript' => null
     ];
     
-    // Enhanced recording detection for phone leads
+    // FIXED: Enhanced recording detection using the correct endpoint
     $is_phone_lead = ($lead_type && (
         stripos($lead_type, 'phone') !== false || 
         stripos($lead_type, 'call') !== false ||
@@ -394,7 +393,7 @@ function fetch_lead_details() {
     ));
 
     if ($is_phone_lead || !empty($actual_lead_data['recording_url']) || !empty($actual_lead_data['call_recording'])) {
-        error_log('Attempting to fetch recording for phone lead or lead with recording data...');
+        error_log('=== CHECKING FOR RECORDING (Phone lead or recording data found) ===');
         
         // First check if recording URL is already in the lead data
         $recording_url_fields = [
@@ -424,63 +423,85 @@ function fetch_lead_details() {
             }
         }
         
-        // If no recording URL found, try separate API calls
+        // FIXED: If no recording URL found, try the correct recording endpoint
         if (!$lead['recording_url']) {
-            $recording_endpoints = [
-                "https://app.whatconverts.com/api/v1/leads/$lead_id/recording?account_id=$account_id",
-                "https://app.whatconverts.com/api/v1/leads/$lead_id/recording",
-                "https://app.whatconverts.com/api/v1/accounts/$account_id/leads/$lead_id/recording",
-                "https://app.whatconverts.com/api/v1/leads/$lead_id/audio",
-                "https://app.whatconverts.com/api/v1/calls/$lead_id/recording"
-            ];
+            error_log('=== TRYING RECORDING ENDPOINT ===');
             
-            foreach ($recording_endpoints as $recording_endpoint) {
-                error_log('Trying recording endpoint: ' . $recording_endpoint);
+            // The working endpoint format: https://app.whatconverts.com/api/v1/recording?lead_id={lead_id}
+            $recording_endpoint = "https://app.whatconverts.com/api/v1/recording?lead_id=" . $lead_id;
+            
+            error_log('Trying recording endpoint: ' . $recording_endpoint);
+            
+            $recording_response = wp_remote_get($recording_endpoint, [
+                'headers' => [
+                    'Authorization' => 'Basic ' . base64_encode($api_token . ':' . $api_secret),
+                    'Accept' => 'audio/mpeg, application/json'
+                ],
+                'timeout' => 30
+            ]);
+            
+            if (!is_wp_error($recording_response)) {
+                $recording_code = wp_remote_retrieve_response_code($recording_response);
+                $content_type = wp_remote_retrieve_header($recording_response, 'content-type');
                 
-                $recording_response = wp_remote_get($recording_endpoint, [
-                    'headers' => [
-                        'Authorization' => 'Basic ' . base64_encode($api_token . ':' . $api_secret),
-                        'Content-Type' => 'application/json'
-                    ],
-                    'timeout' => 30
-                ]);
+                error_log('Recording endpoint response code: ' . $recording_code);
+                error_log('Recording content type: ' . $content_type);
                 
-                if (!is_wp_error($recording_response)) {
-                    $recording_code = wp_remote_retrieve_response_code($recording_response);
-                    $recording_body = wp_remote_retrieve_body($recording_response);
-                    
-                    error_log('Recording endpoint response code: ' . $recording_code);
-                    
-                    if ($recording_code === 200) {
-                        $recording_data = json_decode($recording_body, true);
-                        error_log('Recording response: ' . json_encode($recording_data));
+                if ($recording_code === 200) {
+                    // Check if it's audio content
+                    if (strpos($content_type, 'audio') !== false) {
+                        // It's an audio file, set the URL directly
+                        $lead['recording_url'] = $recording_endpoint;
+                        error_log('Recording URL set to: ' . $recording_endpoint);
                         
-                        // Check various possible response formats
-                        $recording_url = null;
-                        if (!empty($recording_data['recording_url'])) {
-                            $recording_url = $recording_data['recording_url'];
-                        } elseif (!empty($recording_data['url'])) {
-                            $recording_url = $recording_data['url'];
-                        } elseif (!empty($recording_data['audio_url'])) {
-                            $recording_url = $recording_data['audio_url'];
-                        } elseif (!empty($recording_data['file_url'])) {
-                            $recording_url = $recording_data['file_url'];
-                        } elseif (is_string($recording_data) && filter_var($recording_data, FILTER_VALIDATE_URL)) {
-                            $recording_url = $recording_data;
+                        // Try to get duration from headers or make a separate call
+                        $duration_header = wp_remote_retrieve_header($recording_response, 'x-duration');
+                        if ($duration_header) {
+                            $lead['recording_duration'] = (int)$duration_header;
+                        } else {
+                            // Try to get duration from the lead data if available
+                            $duration = $actual_lead_data['call_duration'] ?? 0;
+                            if (is_string($duration) && strpos($duration, ':') !== false) {
+                                $parts = explode(':', $duration);
+                                $duration = (int)$parts[0] * 60 + (int)$parts[1];
+                            }
+                            $lead['recording_duration'] = (int)$duration;
                         }
                         
-                        if ($recording_url) {
-                            $lead['recording_url'] = $recording_url;
-                            $lead['recording_duration'] = $recording_data['duration_in_seconds'] ?? 
-                                                        $recording_data['duration'] ?? 
-                                                        $recording_data['call_duration'] ?? 0;
-                            error_log('Recording found via API endpoint: ' . $recording_url);
-                            break;
+                    } else {
+                        // It might be JSON with recording info
+                        $recording_body = wp_remote_retrieve_body($recording_response);
+                        $recording_data = json_decode($recording_body, true);
+                        
+                        if ($recording_data && is_array($recording_data)) {
+                            error_log('Recording response: ' . json_encode($recording_data));
+                            
+                            // Check various possible response formats
+                            $recording_url = null;
+                            if (!empty($recording_data['recording_url'])) {
+                                $recording_url = $recording_data['recording_url'];
+                            } elseif (!empty($recording_data['url'])) {
+                                $recording_url = $recording_data['url'];
+                            } elseif (!empty($recording_data['audio_url'])) {
+                                $recording_url = $recording_data['audio_url'];
+                            } elseif (!empty($recording_data['file_url'])) {
+                                $recording_url = $recording_data['file_url'];
+                            }
+                            
+                            if ($recording_url) {
+                                $lead['recording_url'] = $recording_url;
+                                $lead['recording_duration'] = $recording_data['duration_in_seconds'] ?? 
+                                                            $recording_data['duration'] ?? 
+                                                            $recording_data['call_duration'] ?? 0;
+                                error_log('Recording found via JSON response: ' . $recording_url);
+                            }
                         }
                     }
                 } else {
-                    error_log('Recording endpoint error: ' . $recording_response->get_error_message());
+                    error_log('Recording endpoint returned code: ' . $recording_code);
                 }
+            } else {
+                error_log('Recording endpoint error: ' . $recording_response->get_error_message());
             }
         }
     }
@@ -504,6 +525,64 @@ function fetch_lead_details() {
     error_log(json_encode($lead, JSON_PRETTY_PRINT));
     
     wp_send_json_success($lead);
+}
+
+// NEW: AJAX handler to stream/proxy the recording
+add_action('wp_ajax_stream_recording', 'stream_recording');
+add_action('wp_ajax_nopriv_stream_recording', 'stream_recording');
+
+function stream_recording() {
+    if (!is_user_logged_in()) {
+        wp_send_json_error('Unauthorized', 401);
+    }
+    
+    $lead_id = isset($_GET['lead_id']) ? intval($_GET['lead_id']) : 0;
+    
+    if (!$lead_id) {
+        wp_send_json_error('Invalid lead ID', 400);
+    }
+    
+    $api_token = get_option('whatconverts_api_token');
+    $api_secret = get_option('whatconverts_api_secret');
+    
+    if (!$api_token || !$api_secret) {
+        wp_send_json_error('API credentials not configured', 500);
+    }
+    
+    // The recording endpoint
+    $recording_endpoint = "https://app.whatconverts.com/api/v1/recording?lead_id=" . $lead_id;
+    
+    // Stream the audio
+    $response = wp_remote_get($recording_endpoint, [
+        'headers' => [
+            'Authorization' => 'Basic ' . base64_encode($api_token . ':' . $api_secret),
+            'Accept' => 'audio/mpeg'
+        ],
+        'timeout' => 60
+    ]);
+    
+    if (is_wp_error($response)) {
+        wp_die('Error fetching recording: ' . $response->get_error_message());
+    }
+    
+    $response_code = wp_remote_retrieve_response_code($response);
+    if ($response_code !== 200) {
+        wp_die('Recording not found or access denied');
+    }
+    
+    // Get the audio data
+    $audio_data = wp_remote_retrieve_body($response);
+    $content_type = wp_remote_retrieve_header($response, 'content-type') ?: 'audio/mpeg';
+    
+    // Set headers for audio streaming
+    header('Content-Type: ' . $content_type);
+    header('Content-Length: ' . strlen($audio_data));
+    header('Cache-Control: public, max-age=3600');
+    header('Accept-Ranges: bytes');
+    
+    // Output the audio data
+    echo $audio_data;
+    exit;
 }
 
 // Add a function to fetch dynamic filters data

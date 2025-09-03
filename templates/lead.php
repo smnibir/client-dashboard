@@ -323,7 +323,7 @@ if (!$account_id) {
     width: 100%;
     max-width: 700px;
     max-height: 90vh;
-    overflow-y: none;
+    overflow-y: auto;
 }
 
 .modal-header {
@@ -415,7 +415,7 @@ if (!$account_id) {
     color: #44da67;
 }
 
-/* Recording Player Styles - Simplified */
+/* UPDATED Recording Player Styles */
 .recording-player {
     background: #161616;
     border-radius: 8px;
@@ -446,12 +446,14 @@ if (!$account_id) {
     font-size: 0.875rem;
 }
 
-.simple-audio-controls {
+.recording-controls {
     display: flex;
+    gap: 0.5rem;
     justify-content: center;
+    flex-wrap: wrap;
 }
 
-.simple-play-button {
+.recording-button {
     background: #44da67;
     border: none;
     color: #000;
@@ -464,29 +466,51 @@ if (!$account_id) {
     font-size: 1rem;
     font-weight: 600;
     transition: all 0.2s;
+    text-decoration: none;
 }
 
-.simple-play-button:hover {
+.recording-button:hover {
     background: #3bc55a;
     transform: translateY(-1px);
+    color: #000;
+    text-decoration: none;
 }
 
-.simple-play-button:disabled {
+.recording-button:disabled {
     opacity: 0.6;
     cursor: not-allowed;
     transform: none;
 }
 
-.simple-play-button.playing {
-    background: #ef4444;
+.recording-button.secondary {
+    background: #666;
+    color: #fff;
 }
 
-.simple-play-button.playing:hover {
-    background: #dc2626;
+.recording-button.secondary:hover {
+    background: #777;
+    color: #fff;
 }
 
-audio {
+.audio-player-container {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: #0a0a0a;
+    border-radius: 6px;
+    border: 1px solid #2e2e2e;
+}
+
+.audio-player-container audio {
     width: 100%;
+    background: #000;
+}
+
+.audio-error {
+    color: #ef4444;
+    text-align: center;
+    padding: 1rem;
+    background: rgba(239, 68, 68, 0.1);
+    border-radius: 6px;
     margin-top: 1rem;
 }
 
@@ -601,6 +625,10 @@ audio {
     background: #f5f5f5;
 }
 
+.light-theme .audio-player-container {
+    background: #e5e5e5;
+}
+
 @media (max-width: 768px) {
     .leads-table-wrapper {
         overflow-x: auto;
@@ -616,6 +644,17 @@ audio {
     
     .filter-row > div {
         width: 100%;
+    }
+    
+    .recording-controls {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .recording-button {
+        justify-content: center;
+        flex: 1;
+        min-width: 120px;
     }
 }
 </style>
@@ -909,7 +948,8 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (result.success && result.data) {
                 content.innerHTML = renderLeadDetails(result.data);
-                // No need for audio player initialization - using direct links now
+                // Initialize audio player if recording exists
+                initializeAudioPlayer();
             } else {
                 content.innerHTML = '<p style="color: #ef4444; text-align: center;">Error loading lead details: ' + (result.data || 'Unknown error') + '</p>';
             }
@@ -920,85 +960,35 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Simple audio player initialization
+    // UPDATED: Initialize audio player for recordings
     function initializeAudioPlayer() {
-        const audio = document.getElementById('lead-audio');
-        const playBtn = document.getElementById('simple-play-btn');
-        
-        if (!audio || !playBtn) return;
-        
-        console.log('Initializing simple audio player with URL:', audio.src);
-        
-        // Play/pause functionality
-        playBtn.addEventListener('click', function() {
-            if (audio.paused) {
-                console.log('Playing audio...');
-                playBtn.disabled = true;
-                playBtn.innerHTML = `
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <polyline points="10 8 16 12 10 16"></polyline>
-                    </svg>
-                    <span>Loading...</span>
-                `;
-                
-                audio.play().then(() => {
-                    playBtn.disabled = false;
-                    playBtn.classList.add('playing');
-                    playBtn.innerHTML = `
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="6" y="4" width="4" height="16"></rect>
-                            <rect x="14" y="4" width="4" height="16"></rect>
-                        </svg>
-                        <span>Stop</span>
-                    `;
-                }).catch((error) => {
-                    console.error('Error playing audio:', error);
-                    playBtn.disabled = false;
-                    playBtn.innerHTML = `
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                        </svg>
-                        <span>Play Recording</span>
-                    `;
-                    alert('Error playing recording. Please try again.');
-                });
-            } else {
-                audio.pause();
-                audio.currentTime = 0; // Reset to beginning
-                playBtn.classList.remove('playing');
-                playBtn.innerHTML = `
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                    </svg>
-                    <span>Play Recording</span>
-                `;
-            }
+        // Handle custom play button clicks
+        document.querySelectorAll('.play-recording-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const audioContainer = document.getElementById('audio-player-container');
+                if (audioContainer) {
+                    audioContainer.style.display = 'block';
+                    const audio = audioContainer.querySelector('audio');
+                    if (audio) {
+                        audio.play().catch(error => {
+                            console.error('Error playing audio:', error);
+                            showAudioError('Error playing recording. Please try again.');
+                        });
+                    }
+                }
+            });
         });
+    }
+
+    function showAudioError(message) {
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'audio-error';
+        errorDiv.textContent = message;
         
-        // Reset when audio ends
-        audio.addEventListener('ended', function() {
-            playBtn.classList.remove('playing');
-            playBtn.innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                </svg>
-                <span>Play Recording</span>
-            `;
-        });
-        
-        // Handle audio errors
-        audio.addEventListener('error', function() {
-            console.error('Audio error occurred');
-            playBtn.disabled = false;
-            playBtn.classList.remove('playing');
-            playBtn.innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                </svg>
-                <span>Play Recording</span>
-            `;
-        });
+        const audioContainer = document.getElementById('audio-player-container');
+        if (audioContainer) {
+            audioContainer.appendChild(errorDiv);
+        }
     }
     
     // Format time helper
@@ -1009,7 +999,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     }
 
-    // Enhanced renderLeadDetails function with conditional sections
+    // UPDATED: Enhanced renderLeadDetails function with proper recording handling
     function renderLeadDetails(lead) {
         console.log('Rendering lead details:', lead);
         
@@ -1088,10 +1078,15 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // CONDITIONAL SECTIONS BASED ON LEAD TYPE
         
-        // 1. Phone Call Recording Section - ONLY for phone calls
+        // 1. UPDATED: Phone Call Recording Section - ONLY for phone calls with proper recording handling
         if (isPhoneCall && lead.recording_url) {
             console.log('Adding recording section for phone call');
             console.log('Recording URL being used:', lead.recording_url);
+            
+            // Create a stream URL using our WordPress proxy if needed
+            const streamUrl = lead.recording_url.includes('whatconverts.com') 
+                ? '<?php echo admin_url("admin-ajax.php"); ?>?action=stream_recording&lead_id=' + lead.lead_id
+                : lead.recording_url;
             
             html += `
                 <div class="lead-section">
@@ -1106,14 +1101,14 @@ document.addEventListener('DOMContentLoaded', function() {
                             </div>
                             <div class="recording-duration">Duration: ${formatDuration(lead.recording_duration)}</div>
                         </div>
-                        <div class="simple-audio-controls">
-                            <a href="${lead.recording_url}" target="_blank" class="simple-play-button" style="text-decoration: none; display: flex; align-items: center; gap: 10px;">
+                        <div class="recording-controls">
+                            <button class="recording-button play-recording-btn">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <polygon points="5 3 19 12 5 21 5 3"></polygon>
                                 </svg>
                                 <span>Play Recording</span>
-                            </a>
-                            <a href="${lead.recording_url.replace('/play', '/download')}" target="_blank" class="simple-play-button" style="text-decoration: none; display: flex; align-items: center; gap: 10px; margin-left: 10px; background: #666;">
+                            </button>
+                            <a href="${lead.recording_url}" target="_blank" class="recording-button secondary">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                                     <polyline points="7 10 12 15 17 10"></polyline>
@@ -1121,6 +1116,14 @@ document.addEventListener('DOMContentLoaded', function() {
                                 </svg>
                                 <span>Download</span>
                             </a>
+                        </div>
+                        <div class="audio-player-container" id="audio-player-container" style="display: none;">
+                            <audio controls preload="metadata">
+                                <source src="${streamUrl}" type="audio/mpeg">
+                                <source src="${streamUrl}" type="audio/wav">
+                                <source src="${streamUrl}" type="audio/mp3">
+                                Your browser does not support the audio element.
+                            </audio>
                         </div>
                     </div>
                 </div>
@@ -1221,18 +1224,6 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
         }
         
-        // 6. Lead Summary - Always show if available
-        // if (lead.lead_summary && lead.lead_summary !== 'No summary available') {
-        //     html += `
-        //         <div class="lead-section">
-        //             <h4>Lead Summary</h4>
-        //             <div class="content-text">
-        //                 ${lead.lead_summary}
-        //             </div>
-        //         </div>
-        //     `;
-        // }
-        
         return html;
     }
 
@@ -1240,7 +1231,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelector('.modal-close').addEventListener('click', function() {
         document.getElementById('lead-details-modal').style.display = 'none';
         // Stop audio if playing
-        const audio = document.getElementById('lead-audio');
+        const audio = document.querySelector('#audio-player-container audio');
         if (audio) {
             audio.pause();
         }
@@ -1251,7 +1242,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (e.target === this) {
             this.style.display = 'none';
             // Stop audio if playing
-            const audio = document.getElementById('lead-audio');
+            const audio = document.querySelector('#audio-player-container audio');
             if (audio) {
                 audio.pause();
             }
