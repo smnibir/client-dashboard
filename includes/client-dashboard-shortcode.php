@@ -68,7 +68,7 @@ function render_clickup_client_dashboard() {
 
     // --- Allowed tabs & ordering ---------------------------------------------
     $allowed_titles = [
-        'Welcome',
+        'Home',
         'Meeting Notes',
         'Task List',
         'Performance Summary',
@@ -89,7 +89,7 @@ function render_clickup_client_dashboard() {
 
     // Map tab → template file
     $template_map = [
-        'Welcome'               => 'welcome.php',
+        'Home'               => 'welcome.php',
         'Meeting Notes'         => 'meeting-notes.php',
         'Task List'             => 'task-list.php',
         'Performance Summary'   => 'performance-summary.php',
@@ -103,7 +103,7 @@ function render_clickup_client_dashboard() {
 
     // Map tab → SVG icon file name (from assets/svg/)
     $icons = [
-        'Welcome'               => 'home.svg',
+        'Home'               => 'home.svg',
         'Meeting Notes'         => 'notes.svg',
         'Task List'             => 'task.svg',
         'Performance Summary'   => 'chart.svg',

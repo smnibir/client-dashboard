@@ -415,7 +415,7 @@ if (!$account_id) {
     color: #44da67;
 }
 
-/* UPDATED Recording Player Styles */
+/* Recording Player Styles */
 .recording-player {
     background: #161616;
     border-radius: 8px;
@@ -451,6 +451,7 @@ if (!$account_id) {
     gap: 0.5rem;
     justify-content: center;
     flex-wrap: wrap;
+    margin-top: 1rem;
 }
 
 .recording-button {
@@ -512,6 +513,10 @@ if (!$account_id) {
     background: rgba(239, 68, 68, 0.1);
     border-radius: 6px;
     margin-top: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
 }
 
 .transcript-box {
@@ -665,6 +670,30 @@ document.addEventListener('DOMContentLoaded', function() {
     let totalPages = 1;
     let currentFilters = {};
     let audioPlayer = null;
+
+    // Helper function to stop all audio in the modal
+    function stopModalAudio() {
+        const modal = document.getElementById('lead-details-modal');
+        if (modal) {
+            const audioElements = modal.querySelectorAll('audio');
+            audioElements.forEach(audio => {
+                // Pause the audio
+                audio.pause();
+                // Reset to beginning
+                audio.currentTime = 0;
+                // Remove source to fully stop loading
+                audio.removeAttribute('src');
+                // Clear all source elements
+                const sources = audio.querySelectorAll('source');
+                sources.forEach(source => {
+                    source.removeAttribute('src');
+                });
+                // Force reload to stop any buffering
+                audio.load();
+            });
+            console.log('Stopped all audio in modal');
+        }
+    }
 
     // Load filters and leads on page load
     loadFilterOptions();
@@ -918,16 +947,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Format duration to readable format
     function formatDuration(seconds) {
-        if (!seconds) return '0:00';
+        if (!seconds || isNaN(seconds)) return '0:00';
         const minutes = Math.floor(seconds / 60);
         const secs = seconds % 60;
         return `${minutes}:${secs.toString().padStart(2, '0')}`;
     }
 
-    // Open lead modal
+    // Open lead modal - UPDATED WITH AUDIO STOP
     function openLeadModal(leadId) {
         const modal = document.getElementById('lead-details-modal');
         const content = document.getElementById('lead-details-content');
+        
+        // Stop any existing audio first (in case modal was opened before)
+        stopModalAudio();
         
         modal.style.display = 'flex';
         content.innerHTML = '<div class="leads-loading"><div class="spinner"></div><p>Loading lead details...</p></div>';
@@ -960,67 +992,118 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // UPDATED: Initialize audio player for recordings
+    // Initialize audio player with enhanced error handling
     function initializeAudioPlayer() {
-        // Handle custom play button clicks
-        document.querySelectorAll('.play-recording-btn').forEach(button => {
-            button.addEventListener('click', function() {
-                const audioContainer = document.getElementById('audio-player-container');
-                if (audioContainer) {
-                    audioContainer.style.display = 'block';
-                    const audio = audioContainer.querySelector('audio');
-                    if (audio) {
-                        audio.play().catch(error => {
-                            console.error('Error playing audio:', error);
-                            showAudioError('Error playing recording. Please try again.');
-                        });
-                    }
+        // Handle audio elements with error handling
+        const audioElements = document.querySelectorAll('.audio-player-container audio');
+        audioElements.forEach(audio => {
+            // Track play/pause events
+            audio.addEventListener('play', function() {
+                console.log('Audio started playing');
+            });
+            
+            audio.addEventListener('pause', function() {
+                console.log('Audio paused');
+            });
+            
+            // Add error handler for when recording doesn't load
+            audio.addEventListener('error', function(e) {
+                console.error('Audio loading error:', e);
+                const container = this.closest('.recording-player');
+                if (container) {
+                    // Replace the player with an error message
+                    container.innerHTML = `
+                        <div class="audio-error">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 8px;">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="12" y1="8" x2="12" y2="12"></line>
+                                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                            </svg>
+                            Recording not available for this call
+                        </div>
+                    `;
                 }
+            });
+            
+            // Add loadstart event to show loading state
+            audio.addEventListener('loadstart', function() {
+                console.log('Starting to load recording...');
+            });
+            
+            // Add canplay event to confirm recording loaded
+            audio.addEventListener('canplay', function() {
+                console.log('Recording loaded successfully');
+            });
+        });
+        
+        // Handle download button clicks
+        document.querySelectorAll('.download-recording-btn').forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                const leadId = this.dataset.leadId;
+                const downloadUrl = '<?php echo admin_url("admin-ajax.php"); ?>?action=stream_recording&lead_id=' + leadId + '&download=1';
+                
+                // Disable button while downloading
+                this.disabled = true;
+                const originalText = this.querySelector('span').textContent;
+                this.querySelector('span').textContent = 'Downloading...';
+                
+                // Create a temporary link and trigger download
+                const link = document.createElement('a');
+                link.href = downloadUrl;
+                link.download = 'recording-' + leadId + '.mp3';
+                
+                // Re-enable button after a delay
+                setTimeout(() => {
+                    this.disabled = false;
+                    this.querySelector('span').textContent = originalText;
+                }, 2000);
+                
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
             });
         });
     }
 
-    function showAudioError(message) {
-        const errorDiv = document.createElement('div');
-        errorDiv.className = 'audio-error';
-        errorDiv.textContent = message;
-        
-        const audioContainer = document.getElementById('audio-player-container');
-        if (audioContainer) {
-            audioContainer.appendChild(errorDiv);
-        }
-    }
-    
-    // Format time helper
-    function formatTime(seconds) {
-        if (isNaN(seconds)) return '0:00';
-        const mins = Math.floor(seconds / 60);
-        const secs = Math.floor(seconds % 60);
-        return `${mins}:${secs.toString().padStart(2, '0')}`;
-    }
-
-    // UPDATED: Enhanced renderLeadDetails function with proper recording handling
+    // Render lead details with better error handling
     function renderLeadDetails(lead) {
         console.log('Rendering lead details:', lead);
         
+        // Check if we have valid data
+        if (!lead) {
+            return '<p style="color: #ef4444; text-align: center;">No lead data available</p>';
+        }
+        
+        // Helper function to check if value is empty
+        function isEmpty(value) {
+            return !value || value === 'N/A' || value === 'No ' || value.startsWith('No ') || value.startsWith('Unknown');
+        }
+        
         // Format date if available
         let formattedDate = 'N/A';
-        if (lead.date_created && lead.date_created !== 'N/A' && lead.date_created !== 'Unknown date') {
-            const date = new Date(lead.date_created);
-            formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+        if (!isEmpty(lead.date_created)) {
+            try {
+                const date = new Date(lead.date_created);
+                if (!isNaN(date.getTime())) {
+                    formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+                }
+            } catch (e) {
+                formattedDate = lead.date_created;
+            }
         }
         
         // Format landing page URL as clickable link
         let landingPageDisplay = lead.landing_page || 'N/A';
-        if (lead.landing_page && lead.landing_page !== 'N/A' && lead.landing_page !== 'No landing page' && lead.landing_page.startsWith('http')) {
+        if (!isEmpty(lead.landing_page) && lead.landing_page.startsWith('http')) {
             landingPageDisplay = `<a href="${lead.landing_page}" target="_blank" rel="noopener noreferrer">${lead.landing_page}</a>`;
         }
         
         // Format location
         let location = [];
-        if (lead.city && lead.city !== 'N/A' && lead.city !== 'Unknown city') location.push(lead.city);
-        if (lead.state && lead.state !== 'N/A' && lead.state !== 'Unknown state') location.push(lead.state);
-        if (lead.country && lead.country !== 'N/A' && lead.country !== 'Unknown country') location.push(lead.country);
+        if (!isEmpty(lead.city)) location.push(lead.city);
+        if (!isEmpty(lead.state)) location.push(lead.state);
+        if (!isEmpty(lead.country)) location.push(lead.country);
         const locationDisplay = location.length > 0 ? location.join(', ') : 'N/A';
         
         // Determine lead type for conditional sections
@@ -1029,33 +1112,30 @@ document.addEventListener('DOMContentLoaded', function() {
         const isTextMessage = leadType.includes('text') || leadType.includes('sms') || leadType.includes('message');
         const isWebForm = leadType.includes('form') || leadType.includes('web') || leadType.includes('contact') || leadType.includes('submission');
         
-        console.log('Lead type detection:', {
-            leadType: lead.lead_type,
-            isPhoneCall,
-            isTextMessage, 
-            isWebForm,
-            hasRecording: !!lead.recording_url,
-            hasMessage: !!(lead.message && lead.message !== 'No message' && lead.message !== 'N/A'),
-            hasFormData: !!lead.form_data
-        });
+        // Create display name
+        const displayName = !isEmpty(lead.contactDisplay) ? lead.contactDisplay : (!isEmpty(lead.name) ? lead.name : 'N/A');
         
         let html = `
             <div class="lead-details-grid">
                 <div class="lead-detail-item">
                     <label>Name</label>
-                    <div class="value">${lead.contactDisplay && lead.contactDisplay !== 'No contact information' ? lead.contactDisplay : 'N/A'}</div>
+                    <div class="value">${displayName}</div>
                 </div>
                 <div class="lead-detail-item">
                     <label>Email</label>
-                    <div class="value">${lead.email && lead.email !== 'No email available' ? lead.email : 'N/A'}</div>
+                    <div class="value">${!isEmpty(lead.email) ? lead.email : 'N/A'}</div>
+                </div>
+                <div class="lead-detail-item">
+                    <label>Phone</label>
+                    <div class="value">${!isEmpty(lead.phone_number) ? lead.phone_number : 'N/A'}</div>
                 </div>
                 <div class="lead-detail-item">
                     <label>Lead Type</label>
-                    <div class="value">${lead.lead_type && lead.lead_type !== 'Unknown type' ? lead.lead_type : 'N/A'}</div>
+                    <div class="value">${!isEmpty(lead.lead_type) ? lead.lead_type : 'N/A'}</div>
                 </div>
                 <div class="lead-detail-item">
                     <label>Campaign</label>
-                    <div class="value">${lead.campaign && lead.campaign !== 'No campaign' ? lead.campaign : 'N/A'}</div>
+                    <div class="value">${!isEmpty(lead.campaign) ? lead.campaign : 'N/A'}</div>
                 </div>
                 <div class="lead-detail-item">
                     <label>Landing Page</label>
@@ -1066,27 +1146,18 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="value">${locationDisplay}</div>
                 </div>
                 <div class="lead-detail-item">
-                    <label>IP Address</label>
-                    <div class="value">${lead.ip_address && lead.ip_address !== 'No IP address' ? lead.ip_address : 'N/A'}</div>
-                </div>
-                <div class="lead-detail-item">
                     <label>Date Created</label>
                     <div class="value">${formattedDate}</div>
                 </div>
             </div>
         `;
         
-        // CONDITIONAL SECTIONS BASED ON LEAD TYPE
-        
-        // 1. UPDATED: Phone Call Recording Section - ONLY for phone calls with proper recording handling
-        if (isPhoneCall && lead.recording_url) {
-            console.log('Adding recording section for phone call');
-            console.log('Recording URL being used:', lead.recording_url);
+        // Phone Call Recording Section - FIXED to use proxy endpoint
+        if (isPhoneCall && lead.has_recording && lead.recording_lead_id) {
+            console.log('Adding recording section for phone call with lead ID:', lead.recording_lead_id);
             
-            // Create a stream URL using our WordPress proxy if needed
-            const streamUrl = lead.recording_url.includes('whatconverts.com') 
-                ? '<?php echo admin_url("admin-ajax.php"); ?>?action=stream_recording&lead_id=' + lead.lead_id
-                : lead.recording_url;
+            // Always use the WordPress proxy endpoint for streaming
+            const streamUrl = '<?php echo admin_url("admin-ajax.php"); ?>?action=stream_recording&lead_id=' + lead.recording_lead_id;
             
             html += `
                 <div class="lead-section">
@@ -1099,36 +1170,29 @@ document.addEventListener('DOMContentLoaded', function() {
                                 </svg>
                                 Phone Call Recording
                             </div>
-                            <div class="recording-duration">Duration: ${formatDuration(lead.recording_duration)}</div>
+                            <div class="recording-duration"></div>
+                        </div>
+                        <div class="audio-player-container">
+                            <audio controls preload="none" id="lead-audio-${lead.recording_lead_id}">
+                                <source src="${streamUrl}" type="audio/mpeg">
+                                <source src="${streamUrl}" type="audio/wav">
+                                Your browser does not support the audio element.
+                            </audio>
                         </div>
                         <div class="recording-controls">
-                            <button class="recording-button play-recording-btn">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                                </svg>
-                                <span>Play Recording</span>
-                            </button>
-                            <a href="${lead.recording_url}" target="_blank" class="recording-button secondary">
+                            <button class="recording-button download-recording-btn" data-lead-id="${lead.recording_lead_id}">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                                     <polyline points="7 10 12 15 17 10"></polyline>
                                     <line x1="12" y1="15" x2="12" y2="3"></line>
                                 </svg>
-                                <span>Download</span>
-                            </a>
-                        </div>
-                        <div class="audio-player-container" id="audio-player-container" style="display: none;">
-                            <audio controls preload="metadata">
-                                <source src="${streamUrl}" type="audio/mpeg">
-                                <source src="${streamUrl}" type="audio/wav">
-                                <source src="${streamUrl}" type="audio/mp3">
-                                Your browser does not support the audio element.
-                            </audio>
+                                <span>Download Recording</span>
+                            </button>
                         </div>
                     </div>
                 </div>
             `;
-        } else if (isPhoneCall && !lead.recording_url) {
+        } else if (isPhoneCall && !lead.has_recording) {
             // Show message for phone calls without recording
             html += `
                 <div class="lead-section">
@@ -1140,8 +1204,8 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
         }
         
-        // 2. Call Transcript Section - for phone calls with transcript
-        if (isPhoneCall && lead.transcript && lead.transcript !== 'No transcript available') {
+        // Call Transcript Section
+        if (isPhoneCall && lead.transcript && !isEmpty(lead.transcript)) {
             console.log('Adding transcript section for phone call');
             html += `
                 <div class="lead-section">
@@ -1153,8 +1217,8 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
         }
         
-        // 3. Text Message Section - ONLY for text messages
-        if (isTextMessage && lead.message && lead.message !== 'No message' && lead.message !== 'N/A') {
+        // Text Message Section
+        if (isTextMessage && lead.message && !isEmpty(lead.message)) {
             console.log('Adding message section for text message');
             html += `
                 <div class="lead-section">
@@ -1166,53 +1230,44 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
         }
         
-        // 4. Web Form Data Section - ONLY for web forms
+        // Web Form Data Section
         if (isWebForm && lead.form_data) {
             console.log('Adding form data section for web form');
             
-            // Format form data as key-value pairs
             let formDataHtml = '';
             try {
                 const formData = typeof lead.form_data === 'string' ? JSON.parse(lead.form_data) : lead.form_data;
                 
-                Object.entries(formData).forEach(([key, value]) => {
-                    // Clean up the key by removing "(Required)" and other common suffixes
-                    let cleanKey = key.replace(/\(Required\)/g, '').trim();
-                    
-                    formDataHtml += `
-                        <div class="form-field-row">
-                            <div class="form-field-label">${cleanKey}:</div>
-                            <div class="form-field-value">${value || 'N/A'}</div>
-                        </div>
-                    `;
-                });
+                if (formData && typeof formData === 'object') {
+                    Object.entries(formData).forEach(([key, value]) => {
+                        let cleanKey = key.replace(/\(Required\)/g, '').trim();
+                        formDataHtml += `
+                            <div class="form-field-row">
+                                <div class="form-field-label">${cleanKey}:</div>
+                                <div class="form-field-value">${value || 'N/A'}</div>
+                            </div>
+                        `;
+                    });
+                }
             } catch (e) {
-                // Fallback to raw display if parsing fails
-                formDataHtml = `<pre style="color: #e5e5e5; background: #000; padding: 1rem; border-radius: 6px; overflow-x: auto; white-space: pre-wrap;">${JSON.stringify(lead.form_data, null, 2)}</pre>`;
+                console.error('Error parsing form data:', e);
+                formDataHtml = `<pre style="color: #e5e5e5; background: #000; padding: 1rem; border-radius: 6px;">${JSON.stringify(lead.form_data, null, 2)}</pre>`;
             }
             
-            html += `
-                <div class="lead-section">
-                    <h4>Additional Information</h4>
-                    <div class="form-data-container">
-                        ${formDataHtml}
+            if (formDataHtml) {
+                html += `
+                    <div class="lead-section">
+                        <h4>Form Submission Data</h4>
+                        <div class="form-data-container">
+                            ${formDataHtml}
+                        </div>
                     </div>
-                </div>
-            `;
-        } else if (isWebForm && !lead.form_data) {
-            // Show message for web forms without additional data
-            html += `
-                <div class="lead-section">
-                    <h4>Additional Information</h4>
-                    <div class="content-text" style="color: #999; font-style: italic;">
-                        No additional form data available.
-                    </div>
-                </div>
-            `;
+                `;
+            }
         }
         
-        // 5. General Message Section - for non-text message types that have messages
-        if (!isTextMessage && lead.message && lead.message !== 'No message' && lead.message !== 'N/A') {
+        // General Message Section (for other lead types)
+        if (!isTextMessage && lead.message && !isEmpty(lead.message)) {
             console.log('Adding general message section');
             html += `
                 <div class="lead-section">
@@ -1227,26 +1282,58 @@ document.addEventListener('DOMContentLoaded', function() {
         return html;
     }
 
-    // Close modal
+    // UPDATED: Close modal with audio stop
     document.querySelector('.modal-close').addEventListener('click', function() {
+        // Stop any playing audio first
+        stopModalAudio();
+        
+        // Then hide the modal
         document.getElementById('lead-details-modal').style.display = 'none';
-        // Stop audio if playing
-        const audio = document.querySelector('#audio-player-container audio');
-        if (audio) {
-            audio.pause();
+        
+        // Optional: Clear the modal content to free up memory
+        setTimeout(() => {
+            document.getElementById('lead-details-content').innerHTML = '';
+        }, 300);
+    });
+
+    // UPDATED: Close modal on outside click with audio stop
+    document.getElementById('lead-details-modal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            // Stop any playing audio first
+            stopModalAudio();
+            
+            // Then hide the modal
+            this.style.display = 'none';
+            
+            // Optional: Clear the modal content to free up memory
+            setTimeout(() => {
+                document.getElementById('lead-details-content').innerHTML = '';
+            }, 300);
         }
     });
 
-    // Close modal on outside click
-    document.getElementById('lead-details-modal').addEventListener('click', function(e) {
-        if (e.target === this) {
-            this.style.display = 'none';
-            // Stop audio if playing
-            const audio = document.querySelector('#audio-player-container audio');
-            if (audio) {
-                audio.pause();
+    // NEW: ESC key handler to close modal
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' || e.keyCode === 27) {
+            const modal = document.getElementById('lead-details-modal');
+            if (modal && modal.style.display === 'flex') {
+                // Stop any playing audio first
+                stopModalAudio();
+                
+                // Then hide the modal
+                modal.style.display = 'none';
+                
+                // Optional: Clear the modal content
+                setTimeout(() => {
+                    document.getElementById('lead-details-content').innerHTML = '';
+                }, 300);
             }
         }
+    });
+
+    // NEW: Stop audio when navigating away
+    window.addEventListener('beforeunload', function() {
+        stopModalAudio();
     });
 });
 </script>

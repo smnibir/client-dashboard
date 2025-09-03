@@ -18,6 +18,8 @@ require_once plugin_dir_path(__FILE__) . 'includes/parsedown.php';
 require_once plugin_dir_path(__FILE__) . 'includes/billing-ajax-handlers.php';
 require_once plugin_dir_path(__FILE__) . 'includes/api-endpoints.php';
 require_once plugin_dir_path(__FILE__) . 'includes/class-gf-clickup.php';
+require_once plugin_dir_path(__FILE__) . 'includes/user-account-status.php';
+
 // Add this line to make sure the file loads
 require_once __DIR__ . '/includes/class-gf-clickup.php';
 
