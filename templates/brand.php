@@ -44,21 +44,6 @@ foreach ($words as $word) {
         $initials .= strtoupper($word[0]);
     }
 }
-
-
-
-function render_fa_icon($icon_raw) {
-    if (!$icon_raw) return;
-
-    // If it already contains an <i> tag, allow only <i class="">
-    if (strpos($icon_raw, '<') !== false) {
-        echo wp_kses($icon_raw, ['i' => ['class' => []]]);
-        return;
-    }
-
-    // Otherwise treat it as a Font Awesome class string
-    echo '<i class="' . esc_attr($icon_raw) . '"></i>';
-}
 ?>
 
 <div class="brand-container common-padding">
@@ -158,12 +143,7 @@ function render_fa_icon($icon_raw) {
     </div>
     <?php endif; ?>
     </div>
-    
-    
-    
-    
-    
-    
+
     <!-- Typography Section -->
     <?php if (!empty($typography)): ?>
     <div class="brand-section">
@@ -292,64 +272,148 @@ function render_fa_icon($icon_raw) {
         </div>
     </div>
     <?php endif; ?>
-    
-    
-    
-    <!--company-details-->
-   <div class="company-info">
-        <div class="section-header">
+    <!--contact info-->
+    <div class="brand-section">
+         <div class="section-header">
             <div class="section-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
-                    <circle cx="9" cy="7" r="4"></circle>
-                    <path d="m22 21-3-3m0 0a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"></path>
-                </svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-credit-card w-6 h-6 text-primary" data-lov-id="src/components/portal/Home.tsx:103:18" data-lov-name="Icon" data-component-path="src/components/portal/Home.tsx" data-component-line="103" data-component-file="Home.tsx" data-component-name="Icon" data-component-content="%7B%22className%22%3A%22w-6%20h-6%20text-primary%22%7D"><rect width="20" height="14" x="2" y="5" rx="2"></rect><line x1="2" x2="22" y1="10" y2="10"></line></svg>
             </div>
             <h3>Business Contact Info</h3>
         </div>
-  <?php if ($website_url): ?>
-    <div class="company-item">
-      <a href="<?php echo esc_url($website_url); ?>" target="_blank" rel="noopener">
-        <?php echo esc_html($website_url); ?>
-      </a>
-    </div>
-  <?php endif; ?>
 
-  <?php if ($phone_number): ?>
-    <div class="company-item">
-      <a href="tel:<?php echo esc_attr(preg_replace('/\s+/', '', $phone_number)); ?>">
-        <?php echo esc_html($phone_number); ?>
-      </a>
-    </div>
-  <?php endif; ?>
 
-  <?php if ($company_email): ?>
-    <div class="company-item">
-      <a href="mailto:<?php echo antispambot($company_email); ?>">
-        <?php echo antispambot($company_email); ?>
-      </a>
-    </div>
-  <?php endif; ?>
 
-  <?php if (have_rows('social_media_urls', $ctx)): ?>
-    <div class="company-social">
-      <?php while (have_rows('social_media_urls', $ctx)): the_row(); 
-        $icon = get_sub_field('social_icon'); // can be "<i ...></i>" or "fa-brands fa-x-twitter"
-        $url  = get_sub_field('social_url');
-        if (!$url) continue;
-      ?>
-        <a href="<?php echo esc_url($url); ?>" target="_blank" rel="noopener" class="social-link">
-          <?php render_fa_icon($icon); ?>
-        </a>
-      <?php endwhile; ?>
+        <div class="contacts-grid">
+             <?php if ($website_url): ?>
+                <div class="contact-item ">
+                    <div class="contact-ico">
+                        <img src="https://portal.webgrowth.io/wp-content/uploads/2025/09/world-wide-web.png" alt="web" />
+                    </div>
+                    
+                    <div class="contact-info">
+                        <h5>Website URL</h5>
+                        <p class="designation"><?php echo esc_url($website_url); ?></p>
+
+                    </div>
+                </div>
+                  <?php endif; ?>
+             <?php if ($phone_number): ?>
+                <div class="contact-item ">
+                    <div class="contact-ico">
+                        <img src="https://portal.webgrowth.io/wp-content/uploads/2025/09/phone.png" alt="phone" />
+                    </div>
+                    
+                    <div class="contact-info">
+                        <h5>Phone</h5>
+                        <p class="designation"><?php echo esc_attr(preg_replace('/\s+/', '', $phone_number)); ?></p>
+
+                    </div>
+                </div>
+                  <?php endif; ?>
+             <?php if ($company_email): ?>
+                <div class="contact-item ">
+                    <div class="contact-ico">
+                        <img src="https://portal.webgrowth.io/wp-content/uploads/2025/09/email.png" alt="email" />
+                    </div>
+                    
+                    <div class="contact-info">
+                        <h5>Email</h5>
+                        <p class="designation"><?php echo esc_url($company_email); ?></p>
+
+                    </div>
+                </div>
+                  <?php endif; ?>
+             
+             
+             <div class="contact-item ">
+                    <div class="contact-ico">
+                        <img src="https://portal.webgrowth.io/wp-content/uploads/2025/09/network.png" alt="socail" />
+                    </div>
+                    
+                    <div class="contact-info">
+                        <h5>Social Links</h5>
+            <?php
+// Check if the repeater field has rows
+if( have_rows('social_icons', 'user_' . $user_id) ): ?>
+    <div class="social-icons-wrapper">
+        <?php 
+        // Loop through the rows
+        while( have_rows('social_icons', 'user_' . $user_id) ): the_row(); 
+            
+            // Get sub field values
+            $icon = get_sub_field('icon');
+            $social_media_url = get_sub_field('social_media_url');
+            
+            // Only display if both fields have values
+            if( $icon && $social_media_url ): ?>
+                <a href="<?php echo esc_url($social_media_url); ?>" 
+                   target="_blank" 
+                   rel="noopener noreferrer" 
+                   class="social-icon-link"
+                   aria-label="Social Media Link">
+                    <?php 
+                    // Check if icon contains HTML (i.e., <i class="...">)
+                    if( strpos($icon, '<') !== false ): 
+                        // It's already HTML, output with allowed tags
+                        echo wp_kses($icon, array(
+                            'i' => array(
+                                'class' => array()
+                            )
+                        ));
+                    else: 
+                        // It's just classes, wrap in <i> tag
+                        ?>
+                        <i class="<?php echo esc_attr($icon); ?>"></i>
+                    <?php endif; ?>
+                </a>
+            <?php endif; 
+            
+        endwhile; ?>
     </div>
-  <?php endif; ?>
-</div>
-    
-    
+<?php endif; ?>
+                    </div>
+                </div>
+             
+             
+             
+             
+             
+        </div>
+    </div>
 </div>
 
 <style>
+.billing-actions {
+    margin-bottom: 2rem;
+}
+
+.btn-primary {
+    background: #44da67;
+    color: #000;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+    font-size: .9rem!important;
+}
+
+.btn-primary:hover {
+    background: #3bc55a;
+    transform: translateY(-2px);
+     color: #000;
+}
+.social-icons-wrapper i{
+    font-size: 18px;
+}
+.contact-ico{
+        width: 40px;
+    height: 40px;
+}
 .brand-container {
     color: #ffffff;
 }

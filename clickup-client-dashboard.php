@@ -2,9 +2,8 @@
 /**
  * Plugin Name: Client Dashboard
  * Description: Custom Plugin. 
- * Version: 2.1
+ * Version: 1.0.1
  * Author: S M Nibir
- * Author URI: https://smnibir.com
  */
 
 if (!defined('ABSPATH')) exit;
@@ -16,10 +15,9 @@ require_once plugin_dir_path(__FILE__) . 'includes/ajax-handlers.php';
 require_once plugin_dir_path(__FILE__) . 'includes/client-dashboard-shortcode.php';
 require_once plugin_dir_path(__FILE__) . 'includes/enqueue-admin-scripts.php';
 require_once plugin_dir_path(__FILE__) . 'includes/parsedown.php';
-// require_once plugin_dir_path(__FILE__) . 'includes/billing-ajax-handlers.php';
-// require_once plugin_dir_path(__FILE__) . 'includes/api-endpoints.php';
+require_once plugin_dir_path(__FILE__) . 'includes/billing-ajax-handlers.php';
+require_once plugin_dir_path(__FILE__) . 'includes/api-endpoints.php';
 require_once plugin_dir_path(__FILE__) . 'includes/class-gf-clickup.php';
-
 // Add this line to make sure the file loads
 require_once __DIR__ . '/includes/class-gf-clickup.php';
 

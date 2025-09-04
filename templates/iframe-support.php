@@ -103,15 +103,15 @@
 }
 
 .low {
-  background-color: #3e63dd;
+  background-color: #2563eb;
 }
 
 .medium {
-  background-color: #ffc53d;
+  background-color: #ea580c;
 }
 
 .urgent {
-  background-color: rgb(255, 133, 137);
+  background-color: #dc2626;
 }
 
 .manager-name {

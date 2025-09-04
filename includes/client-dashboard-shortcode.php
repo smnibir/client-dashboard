@@ -74,7 +74,7 @@ function render_clickup_client_dashboard() {
         'Performance Summary',
         'Analytics Dashboard',
         'Campaign Strategy',
-        'Billing & Payments',
+        // 'Billing & Payments',
         'Brand Assets & Info',
         'Support Form',
     ];
