@@ -12,6 +12,9 @@ $download_assets = get_field('download_assets', 'user_' . $user_id) ?: [];
 $team_contacts = get_field('team_contacts', 'user_' . $user_id) ?: [];
 $drive_link = get_field('core_drive_link', 'user_' . $user_id) ?: [];
 $asset_link = get_field('asset_drive_link', 'user_' . $user_id) ?: [];
+$website_url   = get_field('website_url', 'user_' . $user_id);
+$phone_number  = get_field('company_phone_number', 'user_' . $user_id);
+$company_email = get_field('company_email', 'user_' . $user_id);
 
 // Function to get initials from name
 function get_initials($name) {
@@ -40,6 +43,21 @@ foreach ($words as $word) {
     if (!empty($word)) {
         $initials .= strtoupper($word[0]);
     }
+}
+
+
+
+function render_fa_icon($icon_raw) {
+    if (!$icon_raw) return;
+
+    // If it already contains an <i> tag, allow only <i class="">
+    if (strpos($icon_raw, '<') !== false) {
+        echo wp_kses($icon_raw, ['i' => ['class' => []]]);
+        return;
+    }
+
+    // Otherwise treat it as a Font Awesome class string
+    echo '<i class="' . esc_attr($icon_raw) . '"></i>';
 }
 ?>
 
@@ -140,7 +158,12 @@ foreach ($words as $word) {
     </div>
     <?php endif; ?>
     </div>
-
+    
+    
+    
+    
+    
+    
     <!-- Typography Section -->
     <?php if (!empty($typography)): ?>
     <div class="brand-section">
@@ -269,6 +292,61 @@ foreach ($words as $word) {
         </div>
     </div>
     <?php endif; ?>
+    
+    
+    
+    <!--company-details-->
+   <div class="company-info">
+        <div class="section-header">
+            <div class="section-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
+                    <path d="m22 21-3-3m0 0a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"></path>
+                </svg>
+            </div>
+            <h3>Business Contact Info</h3>
+        </div>
+  <?php if ($website_url): ?>
+    <div class="company-item">
+      <a href="<?php echo esc_url($website_url); ?>" target="_blank" rel="noopener">
+        <?php echo esc_html($website_url); ?>
+      </a>
+    </div>
+  <?php endif; ?>
+
+  <?php if ($phone_number): ?>
+    <div class="company-item">
+      <a href="tel:<?php echo esc_attr(preg_replace('/\s+/', '', $phone_number)); ?>">
+        <?php echo esc_html($phone_number); ?>
+      </a>
+    </div>
+  <?php endif; ?>
+
+  <?php if ($company_email): ?>
+    <div class="company-item">
+      <a href="mailto:<?php echo antispambot($company_email); ?>">
+        <?php echo antispambot($company_email); ?>
+      </a>
+    </div>
+  <?php endif; ?>
+
+  <?php if (have_rows('social_media_urls', $ctx)): ?>
+    <div class="company-social">
+      <?php while (have_rows('social_media_urls', $ctx)): the_row(); 
+        $icon = get_sub_field('social_icon'); // can be "<i ...></i>" or "fa-brands fa-x-twitter"
+        $url  = get_sub_field('social_url');
+        if (!$url) continue;
+      ?>
+        <a href="<?php echo esc_url($url); ?>" target="_blank" rel="noopener" class="social-link">
+          <?php render_fa_icon($icon); ?>
+        </a>
+      <?php endwhile; ?>
+    </div>
+  <?php endif; ?>
+</div>
+    
+    
 </div>
 
 <style>
